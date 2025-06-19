@@ -4,23 +4,35 @@ import numpy as np
 import geopandas as gpd 
 import os 
 from shapely.geometry import Point, MultiPoint, LineString
-from scipy.spatial import cKDTree
-import math 
 
+
+# Define file paths, these will eventually be user inputs 
 Levee_filepath = r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\Levee\4310_MooneePonds_Ck_LeveeAlign.shp"
 Lidar_filepath = r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\LiDAR\LiDAR_Merged_Tiles\LiDAR_Merge.tif"
-flood_extent = r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\TUFLOW_results_H_max\Arden_fail_EXG_100y_657_max_h.asc"
 waterway = r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\Waterway Alignment\4310_Channel_Centreline.shp"
+flood_extent = {
+    '1% AEP' : r'J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\TUFLOW_results_H_max\Arden_fail_EXG_100y_657_max_h.asc',
+    '1%CC AEP' : r'J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\TUFLOW_results_H_max\Arden_fail_CC_C_100y_657_max_h.asc',
+    '2% AEP' : r'J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\TUFLOW_results_H_max\Arden_fail_EXG_050y_657_max_h.asc',
+    '5% AEP' : r'J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\TUFLOW_results_H_max\Arden_fail_EXG_020y_657_max_h.asc',
+    '10% AEP' : r'J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\TUFLOW_results_H_max\Arden_fail_EXG_010y_657_max_h.asc',
+    '10%CC AEP' : r'J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\TUFLOW_results_H_max\Arden_fail_CC_C_010y_657_max_h.asc',
+    '20% AEP' : r'J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\TUFLOW_results_H_max\Arden_fail_EXG_005y_657_max_h.asc',
+    '20%CC AEP' : r'J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\TUFLOW_results_H_max\Arden_fail_CC_C_005y_657_max_h.asc'
 
+ 
+}
+
+
+
+
+############# FUNCTIONS #####################
+# SAMPLE LIDAR VALUES 
 def sample_lidar_values(points_gdf, Lidar_filepath):
-    
     # get coordinates from the GeoDataFrame
     coords = [(geom.x, geom.y) for geom in points_gdf.geometry]
     # Open raster 
     with rasterio.open(Lidar_filepath) as src:
-        # set an empty attribute 
-
-        
         # Loop through each point and extract the raster value
         for index, point in points_gdf.iterrows():
             x, y = point.geometry.x, point.geometry.y
@@ -29,19 +41,20 @@ def sample_lidar_values(points_gdf, Lidar_filepath):
 
 
 
-def sample_flood_extent(points_gdf, Lidar_filepath):
-    coords = [(geom.x, geom.y) for geom in points_gdf.geometry]
-    with rasterio.open(Lidar_filepath) as src:
-        # this will need some processing to automate the column heading rather than hard code it 
-
+def sample_flood_extent(points_gdf, flood_extent, label):
+    coords = [(geom.x
+               , geom.y) for geom in points_gdf.geometry]
+    with rasterio.open(raster_path) as src:
         for index, point in points_gdf.iterrows():
             x, y = point.geometry.x, point.geometry.y
             row, col = src.index(x, y)  # Get the row and column of the raster
-            points_gdf.at[index, '1% AEP'] = src.read(1)[row, col]
+            # edit to pass label (1%AEP etc as set above). This function isn't doing anything until we call it further down. After we set label
+            points_gdf.at[index, label] = src.read(1)[row, col]
 
+##################################################
 
-### STEP 1 #####
-# READ in levee shapefile 
+################ STEP 1 ###########################
+# Read in levee shapefile 
 levee_shp = gpd.read_file(Levee_filepath)
 
 # point on the levee every 10m? create a dataframe 
@@ -54,7 +67,6 @@ unique_levee_names = levee_shp['LOCATION_I'].unique()
 looped_chain_count = 0
 levee_count = 0
 
-# this first step takes over 15 mins to complete lines to points
 for line in levee_shp.geometry:
     # total length 
     length = line.length
@@ -86,25 +98,29 @@ points_gdf = gpd.GeoDataFrame(geometry=points_list, crs=levee_shp.crs)
 points_gdf = pd.concat([points_gdf, chainage_dataframe], axis = 1)
 print("point sampling complete") 
 
-
-# call the function to sample lidar 
+######################### STEP 2 ################################
+# Sample lidar 
 lidar_values = sample_lidar_values(points_gdf, Lidar_filepath)
 
-# sample flood results in the same location of the levee 
-flood_extent_values = sample_flood_extent(points_gdf, flood_extent)
+# Sample flood extents 
+# Loop through raster list of flood extents 
+for label, raster_path in flood_extent.items():
+    # sample flood results in the same location of the levee 
+    flood_extent_values = sample_flood_extent(points_gdf, flood_extent, label)
+    print(f"Flood extent sampling complete for {label}")
 
-#### QUERY THIS DATA eg if this value is higher than the LiDAR -> attribute it 
-for row in points_gdf:
-    ## change this to -999 values 
-    points_gdf['1% AEP'] = np.where(points_gdf['Elev(mAHD)'] < points_gdf['1% AEP'], points_gdf['1% AEP'], 0)
+    #### QUERY THIS DATA eg if this value is higher than the LiDAR -> attribute it 
+    for row in points_gdf:
+        ## change this to -999 values 
+        points_gdf[label] = np.where(points_gdf['Elev(mAHD)'] < points_gdf[label], points_gdf[label], 0)
 
 
-# filter where there is no data (0) in the dataframe 
-zero_values =  points_gdf[points_gdf['1% AEP'] == 0]
+    # filter where there is no data (0) in the dataframe 
+    zero_values =  points_gdf[points_gdf[label] == 0]
 
 
 # Load raster
-with rasterio.open(flood_extent) as raster:
+with rasterio.open(raster_path) as raster:
     raster_data = raster.read(1)
     transform = raster.transform
     nodata = raster.nodata
@@ -137,12 +153,9 @@ with rasterio.open(flood_extent) as raster:
     # Extract the geometry column (GeoSeries)
     waterway_gdf = gpd.read_file(waterway)
 
-
-
     # check co or system
     if points_gdf.crs != waterway_gdf.crs:
         waterway_gdf = waterway_gdf.to_crs(points_gdf.crs)
-
 
     # Filter points where '1% AEP' == 0
     subset = points_gdf[points_gdf['1% AEP'] == 0]
