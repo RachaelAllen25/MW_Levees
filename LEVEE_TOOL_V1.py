@@ -11,14 +11,14 @@ Levee_filepath = r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulic
 Lidar_filepath = r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\LiDAR\LiDAR_Merged_Tiles\LiDAR_Merge.tif"
 waterway = r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\Waterway Alignment\4310_Channel_Centreline.shp"
 flood_extent = {
-    '1% AEP' : r'J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\TUFLOW_results_H_max\Arden_fail_EXG_100y_657_max_h.asc',
-    '1%CC AEP' : r'J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\TUFLOW_results_H_max\Arden_fail_CC_C_100y_657_max_h.asc',
-    '2% AEP' : r'J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\TUFLOW_results_H_max\Arden_fail_EXG_050y_657_max_h.asc',
-    '5% AEP' : r'J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\TUFLOW_results_H_max\Arden_fail_EXG_020y_657_max_h.asc',
-    '10% AEP' : r'J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\TUFLOW_results_H_max\Arden_fail_EXG_010y_657_max_h.asc',
-    '10%CC AEP' : r'J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\TUFLOW_results_H_max\Arden_fail_CC_C_010y_657_max_h.asc',
-    '20% AEP' : r'J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\TUFLOW_results_H_max\Arden_fail_EXG_005y_657_max_h.asc',
-    '20%CC AEP' : r'J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\TUFLOW_results_H_max\Arden_fail_CC_C_005y_657_max_h.asc'
+    '1%_AEP' : r'J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\TUFLOW_results_H_max\Arden_fail_EXG_100y_657_max_h.asc',
+    '1%CC_AEP' : r'J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\TUFLOW_results_H_max\Arden_fail_CC_C_100y_657_max_h.asc',
+    '2%_AEP' : r'J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\TUFLOW_results_H_max\Arden_fail_EXG_050y_657_max_h.asc',
+    '5%_AEP' : r'J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\TUFLOW_results_H_max\Arden_fail_EXG_020y_657_max_h.asc',
+    '10%_AEP' : r'J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\TUFLOW_results_H_max\Arden_fail_EXG_010y_657_max_h.asc',
+    '10%CC_AEP' : r'J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\TUFLOW_results_H_max\Arden_fail_CC_C_010y_657_max_h.asc',
+    '20%_AEP' : r'J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\TUFLOW_results_H_max\Arden_fail_EXG_005y_657_max_h.asc',
+    '20%CC_AEP' : r'J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\TUFLOW_results_H_max\Arden_fail_CC_C_005y_657_max_h.asc'
 
  
 }
@@ -98,7 +98,9 @@ points_gdf = gpd.GeoDataFrame(geometry=points_list, crs=levee_shp.crs)
 points_gdf = pd.concat([points_gdf, chainage_dataframe], axis = 1)
 print("point sampling complete") 
 
-######################### STEP 2 ################################
+
+
+######################### STEP 2 - Call Functions for LiDAR and Flood Extent Samples ################################
 # Sample lidar 
 lidar_values = sample_lidar_values(points_gdf, Lidar_filepath)
 
@@ -114,120 +116,115 @@ for label, raster_path in flood_extent.items():
         ## change this to -999 values 
         points_gdf[label] = np.where(points_gdf['Elev(mAHD)'] < points_gdf[label], points_gdf[label], 0)
 
-
     # filter where there is no data (0) in the dataframe 
     zero_values =  points_gdf[points_gdf[label] == 0]
 
 
-# Load raster
-with rasterio.open(raster_path) as raster:
-    raster_data = raster.read(1)
-    transform = raster.transform
-    nodata = raster.nodata
-
-    # You can also build your valid raster coords/values if needed:
-    rows, cols = np.indices(raster_data.shape)
-    xs, ys = rasterio.transform.xy(transform, rows, cols, offset='center')
-    xs_flat = np.array(xs).flatten()
-    ys_flat = np.array(ys).flatten()
-    values_flat = raster_data.flatten()
-    valid_mask = values_flat != nodata
-    valid_coords = np.column_stack((xs_flat[valid_mask], ys_flat[valid_mask]))
-    valid_values = values_flat[valid_mask]
-
-
-
-################## FLOOD EXTENT SEARCH ##########################
-
-###  Not sure if this will make the code slow
+################## STEP 3 FLOOD EXTENT SEARCH ##########################
 
 # create a line (vector) from th point to the nearest waterway 
 # sample raster along the line and store the value 
 # identify the closest raster cell between the point and the waterway (exlcuding null values)
 
+# Load raster
+# Loop through raster list of flood extents 
+for label, raster_path in flood_extent.items():
+    with rasterio.open(raster_path) as raster:
+        raster_data = raster.read(1)
+        transform = raster.transform
+        nodata = raster.nodata
 
-    closest_coords = []
-    closest_values = []
-    trace_lines = []
+        rows, cols = np.indices(raster_data.shape)
+        xs, ys = rasterio.transform.xy(transform, rows, cols, offset='center')
+        xs_flat = np.array(xs).flatten()
+        ys_flat = np.array(ys).flatten()
+        values_flat = raster_data.flatten()
+        valid_mask = values_flat != nodata
+        valid_coords = np.column_stack((xs_flat[valid_mask], ys_flat[valid_mask]))
+        valid_values = values_flat[valid_mask]
 
-    # Extract the geometry column (GeoSeries)
-    waterway_gdf = gpd.read_file(waterway)
+      
 
-    # check co or system
-    if points_gdf.crs != waterway_gdf.crs:
-        waterway_gdf = waterway_gdf.to_crs(points_gdf.crs)
+        # Filter points where sampled value is 0 or nodata
+        subset = points_gdf[(points_gdf[label] == 0)]
+        print("subset complete")
 
-    # Filter points where '1% AEP' == 0
-    subset = points_gdf[points_gdf['1% AEP'] == 0]
-    print("subset complete")
+        # create empty lists within the loop, so they are generated for each raster
+        closest_coords = []
+        trace_lines = []
+        closest_values = []
 
-    # Extract just the geometries of the waterway
-    waterway_lines = waterway_gdf.geometry
-
-  
-
-    for idx, point in subset.geometry.items():
-        # Ensure valid Point - can probs delete this once checked? 
-        if not isinstance(point, Point):
-            point = Point(point)
-
-        # Find the nearest waterway line
-        distances = waterway_lines.distance(point)
-        nearest_line_geom = waterway_lines.loc[distances.idxmin()]
-
-        # Nearest point on the waterway line
-        # project functin allows us to look along the waterway without converting waterway to points 
-        nearest_point_on_water = nearest_line_geom.interpolate(nearest_line_geom.project(point))
-
-
-        # this is forcing co ordinates to become float. 
-        # something wasn't working with shapely, had valid geometries and points 
-        p1 = (float(point.x), float(point.y))
-        p2 = (float(nearest_point_on_water.x), float(nearest_point_on_water.y))
-        trace_line = LineString([p1, p2])
-        trace_lines.append(trace_line)
+        # Extract the geometry column (GeoSeries)
+        waterway_gdf = gpd.read_file(waterway) 
+           # check co or system
+        if points_gdf.crs != waterway_gdf.crs:
+            waterway_gdf = waterway_gdf.to_crs(points_gdf.crs)
         
+        waterway_lines = waterway_gdf.geometry
 
 
-        # Sample along the trace line - edit from 100 to check 
-        num_samples = 100
-        sampled_points = [trace_line.interpolate(d, normalized=True) for d in np.linspace(0, 1, num_samples)]
-        coords = [(p.x, p.y) for p in sampled_points]
+        for idx, point in subset.geometry.items():
+            if not isinstance(point, Point):
+                point = Point(point)
 
-        # Sample raster at those coordinates
-        sampled_values = list(raster.sample(coords))
-        sampled_values = [val[0] for val in sampled_values]
+            # Find nearest waterway line
+                # Find the nearest waterway line
+            distances = waterway_lines.distance(point)
+            nearest_line_geom = waterway_lines.loc[distances.idxmin()]
 
-        # Get first non-nodata raster cell
-        found = False
-        for val, coord in zip(sampled_values, coords):
-            # Handle band values
-            v = val[0] if isinstance(val, (list, tuple, np.ndarray)) else val
-            if v != raster.nodata:
-                closest_coords.append(Point(coord))
-                closest_values.append(float(v))
-                found = True
-                break
-
-        if not found:
-            closest_coords.append(None)
-            closest_values.append(None)
+            # Nearest point on the waterway line
+            # project functin allows us to look along the waterway without converting waterway to points 
+            nearest_point_on_water = nearest_line_geom.interpolate(nearest_line_geom.project(point))
 
 
-    # Add to original GeoDataFrame 
-    points_gdf.loc[subset.index, 'closest_cell_value'] = closest_values
+            # this is forcing co ordinates to become float. 
+            # something wasn't working with shapely, had valid geometries and points 
+            p1 = (float(point.x), float(point.y))
+            p2 = (float(nearest_point_on_water.x), float(nearest_point_on_water.y))
+            trace_line = LineString([p1, p2])
+            trace_lines.append(trace_line)
+
+            # Sample along the trace line - edit from 100 to check 
+            num_samples = 100
+            sampled_points = [trace_line.interpolate(d, normalized=True) for d in np.linspace(0, 1, num_samples)]
+            coords = [(p.x, p.y) for p in sampled_points]
+
+            # Sample raster at those coordinates
+            sampled_values = list(raster.sample(coords))
+            sampled_values = [val[0] for val in sampled_values]
+
+            # Get first non-nodata raster cell
+            found = False
+            for val, coord in zip(sampled_values, coords):
+                # Handle band values
+                v = val[0] if isinstance(val, (list, tuple, np.ndarray)) else val
+                if v != raster.nodata:
+                    closest_coords.append(Point(coord))
+                    closest_values.append(float(v))
+                    found = True
+                    break
+
+            if not found:
+                closest_coords.append(None)
+                closest_values.append(None)
 
 
-for row in points_gdf:
-    ## change this to -999 values 
-    points_gdf['1% AEP'] = np.where(points_gdf['1% AEP'] == 0, points_gdf['closest_cell_value'], points_gdf['1% AEP'])
+        # Add to original GeoDataFrame 
+        #points_gdf[f'{label}_closest_cell_value'] = None
+        points_gdf.loc[subset.index, f'{label}_closest_cell_value'] = closest_values
 
-points_gdf = points_gdf.drop(columns=['closest_cell_value'])
-points_gdf['1% AEP Diff'] = points_gdf['Elev(mAHD)'] - points_gdf['1% AEP']
-print(points_gdf)
+        # change this to -999 values 
+        points_gdf[label] = np.where(points_gdf[label] == 0,
+        points_gdf[f'{label}_closest_cell_value'], points_gdf[label])
 
-trace_lines_gdf = gpd.GeoDataFrame(geometry=trace_lines, crs=subset.crs)
-trace_lines_gdf.to_file(r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\04 Scripting_Code\Python\Processing\trace_lines_4310_v3.shp")
+        points_gdf = points_gdf.drop(columns=[f'{label}_closest_cell_value'])
+        points_gdf[f'{label}_Diff'] = points_gdf['Elev(mAHD)'] - points_gdf[label]
+        print(points_gdf)
+
+        trace_lines_gdf = gpd.GeoDataFrame(geometry=trace_lines, crs=subset.crs)
+        trace_lines_gdf.to_file(f'J:\\IE\\Projects\\03_Southern\\IA5000TK\\07 Technical\\04 Scripting_Code\\Python\\Processing\\{label}_trace_lines_4310.shp')
+
+        
 
 code = str(levee_shp.iloc[0]['LOCATION_I'])
 description = str(levee_shp.iloc[0]['DESCRIPTIO'])
@@ -235,4 +232,9 @@ description = str(levee_shp.iloc[0]['DESCRIPTIO'])
 code = code.replace('/','_')
 # Save points to a new shapefile
 #points_gdf.to_file(f"J:\\IE\\Projects\\03_Southern\\IA5000TK\\07 Technical\\04 Scripting_Code\\Python\\Processing\{code}.shp", driver='ESRI Shapefile')
-points_gdf.to_file(f"J:\\IE\\Projects\\03_Southern\\IA5000TK\\07 Technical\\04 Scripting_Code\\Python\\Processing\{code}_check_TEST.shp", driver='ESRI Shapefile')
+points_gdf.to_file(f"J:\\IE\\Projects\\03_Southern\\IA5000TK\\07 Technical\\04 Scripting_Code\\Python\\Processing\{code}_check_TEST_v2.shp", driver='ESRI Shapefile')
+        
+
+
+
+                
