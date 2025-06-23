@@ -224,19 +224,19 @@ for label, raster_path in flood_extent.items():
 
 # Specifying the diff columns to search for the critical LoS
 for label in flood_extent.keys():
-    check_cols = [f'{label}']
+    check_cols = [f'{label}_Diff']
     freeboard_events = points_gdf[check_cols].where(points_gdf[check_cols] > 0)
     points_gdf['LoS'] = freeboard_events.idxmin(axis=1)
     points_gdf.loc[freeboard_events.min(axis=1).isna(), 'LoS'] = ">20%"
     points_gdf['LoS'] = points_gdf['LoS'].str.split('_').str[0]
 
     # Converting data columns to numeric to allow for rounding
-    numeric_cols = ["Elev(mAHD)", f'{label}']
+    numeric_cols = ["Elev(mAHD)", f'{label}', f'{label}_Diff']
     points_gdf[numeric_cols] = points_gdf[numeric_cols].apply(pd.to_numeric, errors='coerce').round(3)
 
 ############# STEP 5 - SAVE THE OUTPUT ###############        
 
-code = str(levee_shp.iloc[0]['LOCATION_I'])
+code = str(levee_shp.iloc[0]['LOCATION_ID'])
 description = str(levee_shp.iloc[0]['DESCRIPTIO'])
 
 code = code.replace('/','_')
