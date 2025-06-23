@@ -7,24 +7,21 @@ from shapely.geometry import Point, MultiPoint, LineString
 
 
 # Define file paths, these will eventually be user inputs 
-Levee_filepath = r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\Levee\4310_MooneePonds_Ck_LeveeAlign.shp"
-Lidar_filepath = r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\LiDAR\LiDAR_Merged_Tiles\LiDAR_Merge.tif"
-waterway = r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\Waterway Alignment\4310_Channel_Centreline.shp"
+Levee_filepath = r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\0621\01 Build Data\Levee\0621_HallamContour_Dr_LeveeAlign.shp"
+Lidar_filepath = r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\0621\01 Build Data\LiDAR\LiDAR_Merged_Tiles\LiDAR_Merge.tif"
+waterway = r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\0621\01 Build Data\Waterway Alignment\0621_Channel_Centreline.shp"
+# please update these paths and labels to flood extent rasters using the same format as below. Comment out any extra filepaths.
 flood_extent = {
-    '1%_AEP' : r'J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\TUFLOW_results_H_max\Arden_fail_EXG_100y_657_max_h.asc',
-    '1%CC_AEP' : r'J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\TUFLOW_results_H_max\Arden_fail_CC_C_100y_657_max_h.asc',
-    '2%_AEP' : r'J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\TUFLOW_results_H_max\Arden_fail_EXG_050y_657_max_h.asc',
-    '5%_AEP' : r'J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\TUFLOW_results_H_max\Arden_fail_EXG_020y_657_max_h.asc',
-    '10%_AEP' : r'J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\TUFLOW_results_H_max\Arden_fail_EXG_010y_657_max_h.asc',
-    '10%CC_AEP' : r'J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\TUFLOW_results_H_max\Arden_fail_CC_C_010y_657_max_h.asc',
-    '20%_AEP' : r'J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\TUFLOW_results_H_max\Arden_fail_EXG_005y_657_max_h.asc',
-    '20%CC_AEP' : r'J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\TUFLOW_results_H_max\Arden_fail_CC_C_005y_657_max_h.asc'
-
+    '1%_AEP' : r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\0621\01 Build Data\TUFLOW_results_H_max\GDA2020_Reprojected\Rasters\0621_100yr_GDA2020.tif",
+    '1%CC_AEP' : r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\0621\01 Build Data\TUFLOW_results_H_max\GDA2020_Reprojected\Rasters\0621_100yr_CC_GDA2020.tif",
+    '2%_AEP' : r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\0621\01 Build Data\TUFLOW_results_H_max\GDA2020_Reprojected\Rasters\0621_50yr_GDA2020.tif",
+    '5%_AEP' : r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\0621\01 Build Data\TUFLOW_results_H_max\GDA2020_Reprojected\Rasters\0621_20yr_GDA2020.tif",
+    '10%_AEP' : r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\0621\01 Build Data\TUFLOW_results_H_max\GDA2020_Reprojected\Rasters\0621_10yr_GDA2020.tif",
+    # '10%CC_AEP' : r'J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\TUFLOW_results_H_max\Arden_fail_CC_C_010y_657_max_h.asc',
+    '20%_AEP' : r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\0621\01 Build Data\TUFLOW_results_H_max\GDA2020_Reprojected\Rasters\0621_5yr_GDA2020.tif",
+    #'20%CC_AEP' : r'J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\TUFLOW_results_H_max\Arden_fail_CC_C_005y_657_max_h.asc'
  
 }
-
-
-
 
 ############# FUNCTIONS #####################
 # SAMPLE LIDAR VALUES 
@@ -47,13 +44,13 @@ def sample_flood_extent(points_gdf, flood_extent, label):
     with rasterio.open(raster_path) as src:
         for index, point in points_gdf.iterrows():
             x, y = point.geometry.x, point.geometry.y
-            row, col = src.index(x, y)  # Get the row and column of the raster
+            row, col = src.index(x, y)  
             # edit to pass label (1%AEP etc as set above). This function isn't doing anything until we call it further down. After we set label
             points_gdf.at[index, label] = src.read(1)[row, col]
 
 ##################################################
 
-################ STEP 1 ###########################
+########################### STEP 1 - READ IN LEVEE SHAPEFILE ###########################
 # Read in levee shapefile 
 levee_shp = gpd.read_file(Levee_filepath)
 
@@ -156,7 +153,7 @@ for label, raster_path in flood_extent.items():
 
         # Extract the geometry column (GeoSeries)
         waterway_gdf = gpd.read_file(waterway) 
-           # check co or system
+        # check co or system
         if points_gdf.crs != waterway_gdf.crs:
             waterway_gdf = waterway_gdf.to_crs(points_gdf.crs)
         
@@ -168,7 +165,6 @@ for label, raster_path in flood_extent.items():
                 point = Point(point)
 
             # Find nearest waterway line
-                # Find the nearest waterway line
             distances = waterway_lines.distance(point)
             nearest_line_geom = waterway_lines.loc[distances.idxmin()]
 
@@ -178,7 +174,6 @@ for label, raster_path in flood_extent.items():
 
 
             # this is forcing co ordinates to become float. 
-            # something wasn't working with shapely, had valid geometries and points 
             p1 = (float(point.x), float(point.y))
             p2 = (float(nearest_point_on_water.x), float(nearest_point_on_water.y))
             trace_line = LineString([p1, p2])
@@ -210,21 +205,35 @@ for label, raster_path in flood_extent.items():
 
 
         # Add to original GeoDataFrame 
-        #points_gdf[f'{label}_closest_cell_value'] = None
         points_gdf.loc[subset.index, f'{label}_closest_cell_value'] = closest_values
 
-        # change this to -999 values 
+        # replace 0 values with the closest cell value 
         points_gdf[label] = np.where(points_gdf[label] == 0,
         points_gdf[f'{label}_closest_cell_value'], points_gdf[label])
 
+        # we can now drop this column
         points_gdf = points_gdf.drop(columns=[f'{label}_closest_cell_value'])
         points_gdf[f'{label}_Diff'] = points_gdf['Elev(mAHD)'] - points_gdf[label]
         print(points_gdf)
 
+        # for anaylsis of correct raster cells, output generated trace lines 
         trace_lines_gdf = gpd.GeoDataFrame(geometry=trace_lines, crs=subset.crs)
         trace_lines_gdf.to_file(f'J:\\IE\\Projects\\03_Southern\\IA5000TK\\07 Technical\\04 Scripting_Code\\Python\\Processing\\{label}_trace_lines_4310.shp')
 
-        
+############# STEP 4 - LoS Processing ##########################    
+
+# Specifying the diff columns to search for the critical LoS
+check_cols = ["1%_AEP_Diff", "1%CC_AEP_Diff", "2%_AEP_Diff", "5%_AEP_Diff", "10%_AEP_Diff", "20%_AEP_Diff"]
+freeboard_events = points_gdf[check_cols].where(points_gdf[check_cols] > 0)
+points_gdf['LoS'] = freeboard_events.idxmin(axis=1)
+points_gdf.loc[freeboard_events.min(axis=1).isna(), 'LoS'] = ">20%"
+points_gdf['LoS'] = points_gdf['LoS'].str.split('_').str[0]
+
+# Converting data columns to numeric to allow for rounding
+numeric_cols = ["Elev(mAHD)", "1%_AEP", "1%CC_AEP", "2%_AEP", "5%_AEP", "10%_AEP", "20%_AEP", "1%_AEP_Diff", "1%CC_AEP_Diff", "2%_AEP_Diff", "5%_AEP_Diff", "10%_AEP_Diff", "20%_AEP_Diff"]
+points_gdf[numeric_cols] = points_gdf[numeric_cols].apply(pd.to_numeric, errors='coerce').round(3)
+
+############# STEP 5 - SAVE THE OUTPUT ##########################        
 
 code = str(levee_shp.iloc[0]['LOCATION_I'])
 description = str(levee_shp.iloc[0]['DESCRIPTIO'])
@@ -232,9 +241,5 @@ description = str(levee_shp.iloc[0]['DESCRIPTIO'])
 code = code.replace('/','_')
 # Save points to a new shapefile
 #points_gdf.to_file(f"J:\\IE\\Projects\\03_Southern\\IA5000TK\\07 Technical\\04 Scripting_Code\\Python\\Processing\{code}.shp", driver='ESRI Shapefile')
+points_gdf = points_gdf.round(3)
 points_gdf.to_file(f"J:\\IE\\Projects\\03_Southern\\IA5000TK\\07 Technical\\04 Scripting_Code\\Python\\Processing\{code}_check_TEST_v2.shp", driver='ESRI Shapefile')
-        
-
-
-
-                
