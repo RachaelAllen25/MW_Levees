@@ -223,7 +223,7 @@ for label, raster_path in flood_extent.items():
 ############# STEP 4 - LoS Processing ##########################    
 
 # Specifying the diff columns to search for the critical LoS
-for label, raster_path in flood_extent.keys():
+for label in flood_extent.keys():
     check_cols = [f'{label}']
     freeboard_events = points_gdf[check_cols].where(points_gdf[check_cols] > 0)
     points_gdf['LoS'] = freeboard_events.idxmin(axis=1)
