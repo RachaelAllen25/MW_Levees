@@ -7,18 +7,18 @@ from shapely.geometry import Point, MultiPoint, LineString
 
 
 # Define file paths, these will eventually be user inputs 
-Levee_filepath = r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\0621\01 Build Data\Levee\0621_HallamContour_Dr_LeveeAlign.shp"
-Lidar_filepath = r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\0621\01 Build Data\LiDAR\LiDAR_Merged_Tiles\LiDAR_Merge.tif"
-waterway = r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\0621\01 Build Data\Waterway Alignment\0621_Channel_Centreline.shp"
+Levee_filepath = r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\0503\03 Exports\0503_Eumemmering_Ck_LeveeAlign.shp"
+Lidar_filepath = r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\0503\03 Exports\LiDAR_Merge.tif"
+waterway = r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\0503\02 Build Data\03 Shapefiles\0503_Channel_Centreline.shp"
 # please update these paths and labels to flood extent rasters using the same format as below. Comment out any extra filepaths.
 flood_extent = {
-    '1%_AEP' : r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\0621\01 Build Data\TUFLOW_results_H_max\GDA2020_Reprojected\Rasters\0621_100yr_GDA2020.tif",
-    '1%CC_AEP' : r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\0621\01 Build Data\TUFLOW_results_H_max\GDA2020_Reprojected\Rasters\0621_100yr_CC_GDA2020.tif",
-    '2%_AEP' : r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\0621\01 Build Data\TUFLOW_results_H_max\GDA2020_Reprojected\Rasters\0621_50yr_GDA2020.tif",
-    '5%_AEP' : r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\0621\01 Build Data\TUFLOW_results_H_max\GDA2020_Reprojected\Rasters\0621_20yr_GDA2020.tif",
-    '10%_AEP' : r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\0621\01 Build Data\TUFLOW_results_H_max\GDA2020_Reprojected\Rasters\0621_10yr_GDA2020.tif",
+    '1%_AEP' : r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\0503\03 Exports\0503_EumemmeringCk_3m_aep1_h_Max.tif",
+    # '1%CC_AEP' : r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\TUFLOW_results_H_max\Arden_fail_CC_C_100y_657_max_h.asc",
+    '2%_AEP' : r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\0503\03 Exports\0503_EumemmeringCk_3m_aep2_h_Max.tif",
+    '5%_AEP' : r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\0503\03 Exports\0503_EumemmeringCk_3m_aep5_h_Max.tif",
+    '10%_AEP' : r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\0503\03 Exports\0503_EumemmeringCk_3m_aep10_h_Max.tif",
     # '10%CC_AEP' : r'J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\TUFLOW_results_H_max\Arden_fail_CC_C_010y_657_max_h.asc',
-    '20%_AEP' : r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\0621\01 Build Data\TUFLOW_results_H_max\GDA2020_Reprojected\Rasters\0621_5yr_GDA2020.tif",
+    '20%_AEP' : r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\0503\03 Exports\0503_EumemmeringCk_3m_aep20_h_Max.tif",
     #'20%CC_AEP' : r'J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\TUFLOW_results_H_max\Arden_fail_CC_C_005y_657_max_h.asc'
  
 }
@@ -218,22 +218,23 @@ for label, raster_path in flood_extent.items():
 
         # for anaylsis of correct raster cells, output generated trace lines 
         trace_lines_gdf = gpd.GeoDataFrame(geometry=trace_lines, crs=subset.crs)
-        trace_lines_gdf.to_file(f'J:\\IE\\Projects\\03_Southern\\IA5000TK\\07 Technical\\04 Scripting_Code\\Python\\Processing\\{label}_trace_lines_4310.shp')
+        trace_lines_gdf.to_file(f'J:\\IE\\Projects\\03_Southern\\IA5000TK\\07 Technical\\02 Hydraulics\\0503\\04 Code Processing\\{label}_trace_lines_0503.shp')
 
 ############# STEP 4 - LoS Processing ##########################    
 
 # Specifying the diff columns to search for the critical LoS
-check_cols = ["1%_AEP_Diff", "1%CC_AEP_Diff", "2%_AEP_Diff", "5%_AEP_Diff", "10%_AEP_Diff", "20%_AEP_Diff"]
-freeboard_events = points_gdf[check_cols].where(points_gdf[check_cols] > 0)
-points_gdf['LoS'] = freeboard_events.idxmin(axis=1)
-points_gdf.loc[freeboard_events.min(axis=1).isna(), 'LoS'] = ">20%"
-points_gdf['LoS'] = points_gdf['LoS'].str.split('_').str[0]
+for label, raster_path in flood_extent.keys():
+    check_cols = [f'{label}']
+    freeboard_events = points_gdf[check_cols].where(points_gdf[check_cols] > 0)
+    points_gdf['LoS'] = freeboard_events.idxmin(axis=1)
+    points_gdf.loc[freeboard_events.min(axis=1).isna(), 'LoS'] = ">20%"
+    points_gdf['LoS'] = points_gdf['LoS'].str.split('_').str[0]
 
-# Converting data columns to numeric to allow for rounding
-numeric_cols = ["Elev(mAHD)", "1%_AEP", "1%CC_AEP", "2%_AEP", "5%_AEP", "10%_AEP", "20%_AEP", "1%_AEP_Diff", "1%CC_AEP_Diff", "2%_AEP_Diff", "5%_AEP_Diff", "10%_AEP_Diff", "20%_AEP_Diff"]
-points_gdf[numeric_cols] = points_gdf[numeric_cols].apply(pd.to_numeric, errors='coerce').round(3)
+    # Converting data columns to numeric to allow for rounding
+    numeric_cols = ["Elev(mAHD)", f'{label}']
+    points_gdf[numeric_cols] = points_gdf[numeric_cols].apply(pd.to_numeric, errors='coerce').round(3)
 
-############# STEP 5 - SAVE THE OUTPUT ##########################        
+############# STEP 5 - SAVE THE OUTPUT ###############        
 
 code = str(levee_shp.iloc[0]['LOCATION_I'])
 description = str(levee_shp.iloc[0]['DESCRIPTIO'])
@@ -242,4 +243,4 @@ code = code.replace('/','_')
 # Save points to a new shapefile
 #points_gdf.to_file(f"J:\\IE\\Projects\\03_Southern\\IA5000TK\\07 Technical\\04 Scripting_Code\\Python\\Processing\{code}.shp", driver='ESRI Shapefile')
 points_gdf = points_gdf.round(3)
-points_gdf.to_file(f"J:\\IE\\Projects\\03_Southern\\IA5000TK\\07 Technical\\04 Scripting_Code\\Python\\Processing\{code}_check_TEST_v2.shp", driver='ESRI Shapefile')
+points_gdf.to_file(f"J:\\IE\\Projects\\03_Southern\\IA5000TK\\07 Technical\\02 Hydraulics\\0503\\04 Code Processing\\{code}_Levee_LoS_Processing.shp", driver='ESRI Shapefile')
