@@ -7,7 +7,7 @@ from shapely.geometry import Point, MultiPoint, LineString
 
 
 # Define file paths, these will eventually be user inputs 
-Levee_filepath = r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\0503\03 Exports\0503_Eumemmering_Ck_LeveeAlign.shp"
+Levee_filepath = r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\0503\03 Exports\0503_Eumemmering_Ck_LeveeAlign_v2.shp"
 Lidar_filepath = r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\0503\03 Exports\LiDAR_Merge.tif"
 waterway = r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\0503\02 Build Data\03 Shapefiles\0503_Channel_Centreline.shp"
 # please update these paths and labels to flood extent rasters using the same format as below. Comment out any extra filepaths.
@@ -217,23 +217,30 @@ for label, raster_path in flood_extent.items():
         print(points_gdf)
 
         # for anaylsis of correct raster cells, output generated trace lines 
-        trace_lines_gdf = gpd.GeoDataFrame(geometry=trace_lines, crs=subset.crs)
-        trace_lines_gdf.to_file(f'J:\\IE\\Projects\\03_Southern\\IA5000TK\\07 Technical\\02 Hydraulics\\0503\\04 Code Processing\\{label}_trace_lines_0503.shp')
+        #trace_lines_gdf = gpd.GeoDataFrame(geometry=trace_lines, crs=subset.crs)
+        #trace_lines_gdf.to_file(f'J:\\IE\\Projects\\03_Southern\\IA5000TK\\07 Technical\\02 Hydraulics\\0503\\04 Code Processing\\{label}_trace_lines_0503_v2.shp')
 
 ############# STEP 4 - LoS Processing ##########################    
 
 # Specifying the diff columns to search for the critical LoS
+
+check_cols = []
+numeric_cols = ["Elev(mAHD)"]
+
 for label in flood_extent.keys():
-    check_cols = [f'{label}_Diff']
-    freeboard_events = points_gdf[check_cols].where(points_gdf[check_cols] > 0)
-    points_gdf['LoS'] = freeboard_events.idxmin(axis=1)
-    points_gdf.loc[freeboard_events.min(axis=1).isna(), 'LoS'] = ">20%"
-    points_gdf['LoS'] = points_gdf['LoS'].str.split('_').str[0]
+    check_cols.append(f'{label}_Diff')
+    numeric_cols.append(f'{label}')
+    numeric_cols.append(f'{label}_Diff')
 
-    # Converting data columns to numeric to allow for rounding
-    numeric_cols = ["Elev(mAHD)", f'{label}', f'{label}_Diff']
-    points_gdf[numeric_cols] = points_gdf[numeric_cols].apply(pd.to_numeric, errors='coerce').round(3)
+freeboard_events = points_gdf[check_cols].where(points_gdf[check_cols] > 0)
+points_gdf['LoS'] = freeboard_events.idxmin(axis=1)
+points_gdf.loc[freeboard_events.min(axis=1).isna(), 'LoS'] = ">20%"
+points_gdf['LoS'] = points_gdf['LoS'].str.split('_').str[0]
 
+# Converting data columns to numeric to allow for rounding
+
+points_gdf[numeric_cols] = points_gdf[numeric_cols].apply(pd.to_numeric, errors='coerce').round(3)
+    
 ############# STEP 5 - SAVE THE OUTPUT ###############        
 
 code = str(levee_shp.iloc[0]['LOCATION_ID'])
@@ -243,4 +250,4 @@ code = code.replace('/','_')
 # Save points to a new shapefile
 #points_gdf.to_file(f"J:\\IE\\Projects\\03_Southern\\IA5000TK\\07 Technical\\04 Scripting_Code\\Python\\Processing\{code}.shp", driver='ESRI Shapefile')
 points_gdf = points_gdf.round(3)
-points_gdf.to_file(f"J:\\IE\\Projects\\03_Southern\\IA5000TK\\07 Technical\\02 Hydraulics\\0503\\04 Code Processing\\{code}_Levee_LoS_Processing.shp", driver='ESRI Shapefile')
+points_gdf.to_file(f"J:\\IE\\Projects\\03_Southern\\IA5000TK\\07 Technical\\02 Hydraulics\\0503\\04 Code Processing\\{code}_Levee_LoS_Processing_v3.shp", driver='ESRI Shapefile')
