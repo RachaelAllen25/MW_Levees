@@ -144,9 +144,8 @@ for label, raster_path in flood_extent.items():
         print("subset complete")
 
         # create empty lists within the loop, so they are generated for each raster
-        closest_coords = []
         trace_lines = []
-        closest_values = []
+        central_waterway_values = []
 
         # Extract the geometry column (GeoSeries)
         # Reading the provided waterway shapefile into a geodataframe - this includes all of the associated shapefile attribute data
@@ -189,52 +188,57 @@ for label, raster_path in flood_extent.items():
             trace_line = LineString([p1, p2])
             trace_lines.append(trace_line)
 
+            centre_sample_value = float(next(raster.sample([(nearest_point_on_water.x, nearest_point_on_water.y)]))[0])
+            central_waterway_values.append(centre_sample_value)
+
+            # The code block below was blocked out to trial updated sampling approach
+
             # Sample along the trace line - edit from 100 to check 
-            num_samples = 100
-            sampled_points = [trace_line.interpolate(d, normalized=True) for d in np.linspace(0, 1, num_samples)]
-            coords = [(p.x, p.y) for p in sampled_points]
+            # num_samples = 100
+            # sampled_points = [trace_line.interpolate(d, normalized=True) for d in np.linspace(0, 1, num_samples)]
+            # coords = [(p.x, p.y) for p in sampled_points]
 
             # Sample raster at those coordinates
-            sampled_values = list(raster.sample(coords))
-            sampled_values = [val[0] for val in sampled_values]
+            # sampled_values = list(raster.sample(coords))
+            # sampled_values = [val[0] for val in sampled_values]
 
             # Get first non-nodata raster cell
             # Found is intially set to False - this will convert to true once sampling is successful
             # For loop samples both the values and coords (should be equal length)
-            found = False
-            for val, coord in zip(sampled_values, coords):
+            # found = False
+            # for val, coord in zip(sampled_values, coords):
                 
                 # Handle band values
                 # v = val[0] with the if statement is to allow different data tpyes (this is a possibiilty based on the different raster/sampling types)
                 # If not one of the listed data type, the raw val is used from the sampling process
-                v = val[0] if isinstance(val, (list, tuple, np.ndarray)) else val
+                # v = val[0] if isinstance(val, (list, tuple, np.ndarray)) else val
                 
                 # For loop commences if val is a real data (not null)
-                if v != raster.nodata:
+                # if v != raster.nodata:
 
                     # Adds the first non zero raster value and coordinates to the predefined list
                     # Updates the found entry to True, indicating search success
                     # For loop is broken
-                    closest_coords.append(Point(coord))
-                    closest_values.append(float(v))
-                    found = True
-                    break
+                    # closest_coords.append(Point(coord))
+                    # closest_values.append(float(v))
+                    # found = True
+                    # break
 
             # The if not found is activated if found is still assigned to false
             # None is predefined python variable to represent a null value            
-            if not found:
-                closest_coords.append(None)
-                closest_values.append(None)
+            # if not found:
+                # closest_coords.append(None)
+                # closest_values.append(None)
 
         # Add to original GeoDataFrame 
-        points_gdf.loc[subset.index, f'{label}_closest_cell_value'] = closest_values
+        points_gdf.loc[subset.index, f'{label}_central_cell_value'] = central_waterway_values
 
         # replace 0 values with the closest cell value 
         points_gdf[label] = np.where(points_gdf[label] == 0,
-        points_gdf[f'{label}_closest_cell_value'], points_gdf[label])
+        points_gdf[f'{label}_central_cell_value'], points_gdf[label])
 
         # we can now drop this column
-        points_gdf = points_gdf.drop(columns=[f'{label}_closest_cell_value'])
+        points_gdf = points_gdf.drop(columns=[f'{label}_central_cell_value'])
         points_gdf[f'{label}_Diff'] = points_gdf['Elev(mAHD)'] - points_gdf[label]
         print(points_gdf)
 
@@ -265,7 +269,7 @@ points_gdf[numeric_cols] = points_gdf[numeric_cols].apply(pd.to_numeric, errors=
     
 ############# STEP 5 - SAVE THE OUTPUT ###############        
 
-code = str(levee_shp.iloc[0]['LOCATION_ID'])
+code = str(levee_shp.iloc[0]['LOCATION_I'])
 description = str(levee_shp.iloc[0]['DESCRIPTIO'])
 
 code = code.replace('/','_')
