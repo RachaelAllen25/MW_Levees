@@ -45,7 +45,7 @@ def sample_flood_extent(points_gdf, flood_extent, label):
             x, y = point.geometry.x, point.geometry.y
             row, col = src.index(x, y)  
             # edit to pass label (1%AEP etc as set above). This function isn't doing anything until we call it further down. After we set label
-            points_gdf.at[index, label] = src.read(1)[row, col]
+            points_gdf.at[index, f'{label}_Lev'] = src.read(1)[row, col]
 
 ##################################################
 
@@ -107,13 +107,15 @@ for label, raster_path in flood_extent.items():
     flood_extent_values = sample_flood_extent(points_gdf, flood_extent, label)
     print(f"Flood extent sampling complete for {label}")
 
-    #### QUERY THIS DATA eg if this value is higher than the LiDAR -> attribute it 
-    for row in points_gdf:
-        ## change this to -999 values 
-        points_gdf[label] = np.where(points_gdf['Elev(mAHD)'] < points_gdf[label], points_gdf[label], 0)
+    # The code block below was blocked out to trial updated sampling approach
 
+    #### QUERY THIS DATA eg if this value is higher than the LiDAR -> attribute it 
+    # for row in points_gdf:
+        ## change this to -999 values 
+        # points_gdf[label] = np.where(points_gdf['Elev(mAHD)'] < points_gdf[label], points_gdf[label], 0)
+        
     # filter where there is no data (0) in the dataframe 
-    zero_values =  points_gdf[points_gdf[label] == 0]
+    # zero_values = points_gdf[points_gdf[label] == 0]
 
 
 ################## STEP 3 FLOOD EXTENT SEARCH ##########################
@@ -126,22 +128,24 @@ for label, raster_path in flood_extent.items():
 # Loop through raster list of flood extents 
 for label, raster_path in flood_extent.items():
     with rasterio.open(raster_path) as raster:
-        raster_data = raster.read(1)
-        transform = raster.transform
-        nodata = raster.nodata
+        
+        # The code block below was blocked out to trial updated sampling approach
+        # raster_data = raster.read(1)
+        # transform = raster.transform
+        # nodata = raster.nodata
 
-        rows, cols = np.indices(raster_data.shape)
-        xs, ys = rasterio.transform.xy(transform, rows, cols, offset='center')
-        xs_flat = np.array(xs).flatten()
-        ys_flat = np.array(ys).flatten()
-        values_flat = raster_data.flatten()
-        valid_mask = values_flat != nodata
-        valid_coords = np.column_stack((xs_flat[valid_mask], ys_flat[valid_mask]))
-        valid_values = values_flat[valid_mask]
+        # rows, cols = np.indices(raster_data.shape)
+        # xs, ys = rasterio.transform.xy(transform, rows, cols, offset='center')
+        # xs_flat = np.array(xs).flatten()
+        # ys_flat = np.array(ys).flatten()
+        # values_flat = raster_data.flatten()
+        # valid_mask = values_flat != nodata
+        # valid_coords = np.column_stack((xs_flat[valid_mask], ys_flat[valid_mask]))
+        # valid_values = values_flat[valid_mask]
       
         # Filter points where sampled value is 0 or nodata
-        subset = points_gdf[(points_gdf[label] == 0)]
-        print("subset complete")
+        # subset = points_gdf[(points_gdf[label] == 0)]
+        # print("subset complete")
 
         # create empty lists within the loop, so they are generated for each raster
         trace_lines = []
@@ -161,7 +165,7 @@ for label, raster_path in flood_extent.items():
         # This for loop interates over both the index and the geometry (points) with the geodata frame
         # Using the .geometry isolates the geometry
         # Using .items allow iteration over both idx and points
-        for idx, point in subset.geometry.items():
+        for idx, point in points_gdf.geometry.items():
             
             # This check assess whether each geometry (point) is a Point class
             if not isinstance(point, Point):
@@ -231,15 +235,15 @@ for label, raster_path in flood_extent.items():
                 # closest_values.append(None)
 
         # Add to original GeoDataFrame 
-        points_gdf.loc[subset.index, f'{label}_central_cell_value'] = central_waterway_values
+        points_gdf[f'{label}_Wway'] = central_waterway_values
 
         # replace 0 values with the closest cell value 
-        points_gdf[label] = np.where(points_gdf[label] == 0,
-        points_gdf[f'{label}_central_cell_value'], points_gdf[label])
+        # points_gdf[label] = np.where(points_gdf[label] == 0,
+        # points_gdf[f'{label}_Strm'], points_gdf[label])
 
         # we can now drop this column
-        points_gdf = points_gdf.drop(columns=[f'{label}_central_cell_value'])
-        points_gdf[f'{label}_Diff'] = points_gdf['Elev(mAHD)'] - points_gdf[label]
+        # points_gdf = points_gdf.drop(columns=[f'{label}_central_cell_value'])
+        points_gdf[f'{label}_Diff'] = points_gdf['Elev(mAHD)'] - points_gdf[f'{label}_Wway']
         print(points_gdf)
 
         # for anaylsis of correct raster cells, output generated trace lines 
@@ -255,7 +259,8 @@ numeric_cols = ["Elev(mAHD)"]
 
 for label in flood_extent.keys():
     check_cols.append(f'{label}_Diff')
-    numeric_cols.append(f'{label}')
+    numeric_cols.append(f'{label}_Lev')
+    numeric_cols.append(f'{label}_Wway')
     numeric_cols.append(f'{label}_Diff')
 
 freeboard_events = points_gdf[check_cols].where(points_gdf[check_cols] > 0)
@@ -276,4 +281,4 @@ code = code.replace('/','_')
 # Save points to a new shapefile
 #points_gdf.to_file(f"J:\\IE\\Projects\\03_Southern\\IA5000TK\\07 Technical\\04 Scripting_Code\\Python\\Processing\{code}.shp", driver='ESRI Shapefile')
 points_gdf = points_gdf.round(3)
-points_gdf.to_file(f"J:\\IE\\Projects\\03_Southern\\IA5000TK\\07 Technical\\04 Scripting_Code\\Python\\Processing\\{code}_Levee_LoS_Processing_Central_Sample.shp", driver='ESRI Shapefile')
+points_gdf.to_file(f"J:\\IE\\Projects\\03_Southern\\IA5000TK\\07 Technical\\04 Scripting_Code\\Python\\Processing\\{code}_Levee_LoS_Processing_Central_Sample_v2.shp", driver='ESRI Shapefile')
