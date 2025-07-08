@@ -5,7 +5,6 @@ import geopandas as gpd
 import os 
 from shapely.geometry import Point, MultiPoint, LineString
 
-
 # Define file paths, these will eventually be user inputs 
 Levee_filepath = r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\Levee\4310_MooneePonds_Ck_LeveeAlign_GDA94_v2.shp"
 Lidar_filepath = r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\LiDAR\DEM_Z_Engeny\TIFs\AMC_CC2100_100y_180m_tp29_011_MPC_DEM_Z.tif"
@@ -35,8 +34,7 @@ def sample_lidar_values(points_gdf, Lidar_filepath):
             row, col = src.index(x, y)  
             points_gdf.at[index, 'Elev(mAHD)'] = src.read(1)[row, col]
 
-
-
+# SAMPLE FLOOD DATA
 def sample_flood_extent(points_gdf, flood_extent, label):
     coords = [(geom.x
                , geom.y) for geom in points_gdf.geometry]
@@ -45,20 +43,64 @@ def sample_flood_extent(points_gdf, flood_extent, label):
             x, y = point.geometry.x, point.geometry.y
             row, col = src.index(x, y)  
             # edit to pass label (1%AEP etc as set above). This function isn't doing anything until we call it further down. After we set label
-            points_gdf.at[index, f'{label}_Lev'] = src.read(1)[row, col]
+            points_gdf.at[index, f'{label}_L'] = src.read(1)[row, col]
 
-##################################################
+# LEVEE REORDERING
+def extract_parts(code):
+
+    # Returns the last entry of a sting
+    suffix = code[-1]
+
+    # int function is used to store data as an interger - this allows for numeric listing
+    # .split function splits the string at the "LEV" input
+    # [1] returns the second portion, i.e. after the LEV
+    # [:-1] removes the last character (the suffix)
+    number = int(code.split("LEV")[1][:-1])
+
+    # Function print
+    return suffix, number
 
 ########################### STEP 1 - READ IN LEVEE SHAPEFILE ###########################
 # Read in levee shapefile 
 levee_shp = gpd.read_file(Levee_filepath)
 
-# point on the levee every 10m? create a dataframe 
+# Point on the levee every 10m? create a dataframe 
 points_list = []
 chainage_dataframe = gpd.GeoDataFrame({'Levee Identifier': [], 'Chainage': []})
-# this is m 
+
+# This is m 
 distance = 10 
 
+# Create unique list of levee names based on MW data field
+code_levee_names = levee_shp['LOCATION_I'].unique()
+
+# Empty dictionary to store reordered data
+levee_order = {}
+
+# For loop to cycle through each unique name
+for code in code_levee_names:
+        
+    # Earlier function is called to generate the levee name parts
+    suffix, number = extract_parts(code)
+
+    # This line is grouping the levee names into their respective parts
+    # By using .sefdefault, if suffix is not already a key in the dictionary, a new key (suffix) and empty list pairing is added
+    # If suffix is already a key, the existing value associated with that key is returned (i.e. no change) and the new number/code pairing is appended
+    # Assigning the number as the first dictionary input is input to the next line of code
+    levee_order.setdefault(suffix, []).append((number, code))
+
+# This is the equivalent to a nested for loop
+# First the suffix (dictionary key) are iterated over - using sorted(levee_order) groups the E, W, etc. alphabetically
+# The second for loop iterates over the levee code based on the number entry, e.g. 1, 2 etc.
+# The _, represents a variable that is being iterated over in the for loop but is not used
+reordered_codes = [code for suffix in sorted(levee_order) for _, code in sorted(levee_order[suffix])]
+print(reordered_codes)
+
+levee_shp = levee_shp.set_index('LOCATION_I').loc[reordered_codes]
+levee_shp.reset_index(inplace = True)
+print(levee_shp)
+
+# Initialising datasets for chainage reordering
 unique_levee_names = levee_shp['LOCATION_I'].unique()
 looped_chain_count = 0
 levee_count = 0
@@ -235,7 +277,7 @@ for label, raster_path in flood_extent.items():
                 # closest_values.append(None)
 
         # Add to original GeoDataFrame 
-        points_gdf[f'{label}_Wway'] = central_waterway_values
+        points_gdf[f'{label}_W'] = central_waterway_values
 
         # replace 0 values with the closest cell value 
         # points_gdf[label] = np.where(points_gdf[label] == 0,
@@ -243,41 +285,59 @@ for label, raster_path in flood_extent.items():
 
         # we can now drop this column
         # points_gdf = points_gdf.drop(columns=[f'{label}_central_cell_value'])
-        points_gdf[f'{label}_Diff'] = points_gdf['Elev(mAHD)'] - points_gdf[f'{label}_Wway']
+        points_gdf[f'{label}_D'] = points_gdf['Elev(mAHD)'] - points_gdf[f'{label}_W']
         print(points_gdf)
 
         # for anaylsis of correct raster cells, output generated trace lines 
-        #trace_lines_gdf = gpd.GeoDataFrame(geometry=trace_lines, crs=subset.crs)
-        #trace_lines_gdf.to_file(f'J:\\IE\\Projects\\03_Southern\\IA5000TK\\07 Technical\\02 Hydraulics\\0503\\04 Code Processing\\{label}_trace_lines_0503_v2.shp')
+        trace_lines_gdf = gpd.GeoDataFrame(geometry=trace_lines, crs=points_gdf.crs)
+        trace_lines_gdf.to_file(f'J:\\IE\\Projects\\03_Southern\\IA5000TK\\07 Technical\\02 Hydraulics\\0503\\04 Code Processing\\{label}_trace_lines_central_sample.shp')
 
 ############# STEP 4 - LoS Processing ##########################    
-
 # Specifying the diff columns to search for the critical LoS
 
+# The [] command specifies an empty python list
+# A python list is one-dimensional, i.e. just a row of values
 check_cols = []
 numeric_cols = ["Elev(mAHD)"]
 
+# For loop to group numeric datasets
 for label in flood_extent.keys():
-    check_cols.append(f'{label}_Diff')
-    numeric_cols.append(f'{label}_Lev')
-    numeric_cols.append(f'{label}_Wway')
-    numeric_cols.append(f'{label}_Diff')
+    # Check cols includes _Diff values for subsequent LoS testing
+    check_cols.append(f'{label}_D')
+    numeric_cols.append(f'{label}_L')
+    numeric_cols.append(f'{label}_W')
+    numeric_cols.append(f'{label}_D')
 
+# Creating a subset of the points_gdf from the check_cols
+# This is using the list as an index reference for points_gdf
+# All other values not > 0 become NaN
 freeboard_events = points_gdf[check_cols].where(points_gdf[check_cols] > 0)
+
+# Taking the LoS classification corresponding to the minimum freeboard event
+# idxmin is used rather than min to return the the label/position of the column rather than the actual data entry.
+# axis = 1 locks to search to be per row
+# idxmin does not search and return on NaN values
 points_gdf['LoS'] = freeboard_events.idxmin(axis=1)
+
+# Code to assign the levee points with no observed freeboard a LoS rank of >20%
+# .min(axis=1) is used to search for the minimum value along each row of the freeboard_events gdf
+# .isna() checks if the minimum row value is NaN. Based on the last row of code, if NaN is found, the whole row will be NaN
+# Result is a series of true/false - one per row
+# If .isna() condition met, >20% assiged to the LoS column
 points_gdf.loc[freeboard_events.min(axis=1).isna(), 'LoS'] = ">20%"
+
+# Dropping the _Diff suffix from LoS entry
 points_gdf['LoS'] = points_gdf['LoS'].str.split('_').str[0]
 
 # Converting data columns to numeric to allow for rounding
-
 points_gdf[numeric_cols] = points_gdf[numeric_cols].apply(pd.to_numeric, errors='coerce').round(3)
     
 ############# STEP 5 - SAVE THE OUTPUT ###############        
 
 code = str(levee_shp.iloc[0]['LOCATION_I'])
-description = str(levee_shp.iloc[0]['DESCRIPTIO'])
-
-code = code.replace('/','_')
+code = code.split("/")[0]
+# description = str(levee_shp.iloc[0]['DESCRIPTIO'])
+# code = code.replace('/','_')
 # Save points to a new shapefile
 #points_gdf.to_file(f"J:\\IE\\Projects\\03_Southern\\IA5000TK\\07 Technical\\04 Scripting_Code\\Python\\Processing\{code}.shp", driver='ESRI Shapefile')
 points_gdf = points_gdf.round(3)
