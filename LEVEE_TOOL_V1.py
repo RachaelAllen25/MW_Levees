@@ -1,15 +1,19 @@
-import pandas as pd
-import rasterio 
-import numpy as np
-import geopandas as gpd 
-import os 
-from shapely.geometry import Point, MultiPoint, LineString
+# Importing necessary python packages
+# These will need to be installed on the users PC to run the script
 
-# Define file paths, these will eventually be user inputs 
+import pandas as pd
+import rasterio
+import geopandas as gpd
+from shapely.geometry import Point, LineString
+
+# Define file paths
 Levee_filepath = r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\Levee\4310_MooneePonds_Ck_LeveeAlign_GDA94_v2.shp"
 Lidar_filepath = r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\LiDAR\DEM_Z_Engeny\TIFs\AMC_CC2100_100y_180m_tp29_011_MPC_DEM_Z.tif"
 waterway = r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\Waterway Alignment\4310_Channel_Centreline_GDA94.shp"
-# please update these paths and labels to flood extent rasters using the same format as below. Comment out any extra filepaths.
+ 
+# Define flood result file paths
+# Flooding results loaded in with label function
+# Comment out any extra filepaths/used AEP events.
 flood_extent = {
     '1%_AEP' : r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\TUFLOW_results_H_max\Arden_fail_EXG_100y_657_max_h.asc",
     '1%CC_AEP' : r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\TUFLOW_results_H_max\Arden_fail_CC_C_100y_657_max_h.asc",
@@ -21,28 +25,41 @@ flood_extent = {
     #'20%CC_AEP' : r'J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\TUFLOW_results_H_max\Arden_fail_CC_C_005y_657_max_h.asc'
  }
 
-############# FUNCTIONS #####################
+########## - FUNCTIONS - ##########
+
 # SAMPLE LIDAR VALUES 
 def sample_lidar_values(points_gdf, Lidar_filepath):
-    # get coordinates from the GeoDataFrame
+    
+    # Get coordinates from the GeoDataFrame
     coords = [(geom.x, geom.y) for geom in points_gdf.geometry]
+    
     # Open raster 
     with rasterio.open(Lidar_filepath) as src:
+        
         # Loop through each point and extract the raster value
+        # Saving sample value under 'Elev' field
         for index, point in points_gdf.iterrows():
             x, y = point.geometry.x, point.geometry.y
             row, col = src.index(x, y)  
             points_gdf.at[index, 'Elev(mAHD)'] = src.read(1)[row, col]
 
 # SAMPLE FLOOD DATA
+# The results from this function are not included in the code output
+# Function was left in code for reference and potential repurposing at later development stages
 def sample_flood_extent(points_gdf, flood_extent, label):
-    coords = [(geom.x
-               , geom.y) for geom in points_gdf.geometry]
+    
+    # Get coordinates from the GeoDataFrame
+    coords = [(geom.x, geom.y) for geom in points_gdf.geometry]
+    
+    # Open raster
     with rasterio.open(raster_path) as src:
+        
+        # Loop through each point and extract the raster value
         for index, point in points_gdf.iterrows():
             x, y = point.geometry.x, point.geometry.y
-            row, col = src.index(x, y)  
-            # edit to pass label (1%AEP etc as set above). This function isn't doing anything until we call it further down. After we set label
+            row, col = src.index(x, y)
+
+            # Label index used to assign raster sample to the right AEP event
             points_gdf.at[index, f'{label}_L'] = src.read(1)[row, col]
 
 # LEVEE REORDERING
@@ -60,15 +77,16 @@ def extract_parts(code):
     # Function print
     return suffix, number
 
-########################### STEP 1 - READ IN LEVEE SHAPEFILE ###########################
+########## - STEP 1 - READ IN LEVEE SHAPEFILE - ##########
+
 # Read in levee shapefile 
 levee_shp = gpd.read_file(Levee_filepath)
 
-# Point on the levee every 10m? create a dataframe 
+# Point on the levee - create an empty list 
 points_list = []
 chainage_dataframe = gpd.GeoDataFrame({'Levee Identifier': [], 'Chainage': []})
 
-# This is m 
+# This is in metres
 distance = 10 
 
 # Create unique list of levee names based on MW data field
@@ -93,9 +111,12 @@ for code in code_levee_names:
 # First the suffix (dictionary key) are iterated over - using sorted(levee_order) groups the E, W, etc. alphabetically
 # The second for loop iterates over the levee code based on the number entry, e.g. 1, 2 etc.
 # The _, represents a variable that is being iterated over in the for loop but is not used
+# print statement to show reordered codes
 reordered_codes = [code for suffix in sorted(levee_order) for _, code in sorted(levee_order[suffix])]
 print(reordered_codes)
 
+# Reindexing the levee shp based on new index order
+# print statement to show reordered dataframe
 levee_shp = levee_shp.set_index('LOCATION_I').loc[reordered_codes]
 levee_shp.reset_index(inplace = True)
 print(levee_shp)
@@ -105,40 +126,46 @@ unique_levee_names = levee_shp['LOCATION_I'].unique()
 looped_chain_count = 0
 levee_count = 0
 
+# For loop to work through each line feature in the input shapefile - each specific levee asset
 for line in levee_shp.geometry:
-    # total length 
+    
+    # Total length 
     length = line.length
-    # create the points, length / total distance between points 
-
+    
+    # Create the points, length / total distance between points 
     points = int(length // distance)
 
-    for point_loc in range(points + 1):  # +1 to include both endpoints
-        # extract vertices of the line 
-        # append to list 
-        # pick start and end point of a line 
+    # Indented for loop to work through each point generated from the one unique line feature
+    for point_loc in range(points + 1): # +1 to include both endpoints
+       
+        # Extract vertices of the line 
+        # Append to list 
+        # Pick start and end point of a line 
         point = line.interpolate(point_loc * distance) 
-        # append to list 
+       
+        # Append to list 
         # Point is an attribute of shapely 
         points_list.append(Point(point.x, point.y)) 
 
-        # updating chainage based on individual levee length
+        # Updating chainage based on individual levee length
         unique_chainage = point_loc * 10
         chainage_dataframe.at[(looped_chain_count + point_loc), 'Chainage'] = unique_chainage
         chainage_dataframe.at[(looped_chain_count + point_loc), 'Levee Identifier'] = unique_levee_names[(levee_count)]
-        
+
+    # Resetting loop counter for next individual levee asset
     looped_chain_count = looped_chain_count + point_loc + 1
     levee_count = levee_count + 1
 
 # Create a new GeoDataFrame from the points
-# crs same as input shapefile 
+# Crs same as input shapefile 
 points_gdf = gpd.GeoDataFrame(geometry=points_list, crs=levee_shp.crs)
 
+# Connecting points and chainage dataframe
 points_gdf = pd.concat([points_gdf, chainage_dataframe], axis = 1)
 print("point sampling complete") 
 
+########## - STEP 2 - CALL FUNCTIONS - ##########
 
-
-######################### STEP 2 - Call Functions for LiDAR and Flood Extent Samples ################################
 # Sample lidar 
 lidar_values = sample_lidar_values(points_gdf, Lidar_filepath)
 
