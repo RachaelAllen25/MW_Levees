@@ -172,22 +172,12 @@ lidar_values = sample_lidar_values(points_gdf, Lidar_filepath)
 # Sample flood extents 
 # Loop through raster list of flood extents 
 for label, raster_path in flood_extent.items():
-    # sample flood results in the same location of the levee 
+    
+    # Sample flood results in the same location of the levee 
     flood_extent_values = sample_flood_extent(points_gdf, flood_extent, label)
     print(f"Flood extent sampling complete for {label}")
 
-    # The code block below was blocked out to trial updated sampling approach
-
-    #### QUERY THIS DATA eg if this value is higher than the LiDAR -> attribute it 
-    # for row in points_gdf:
-        ## change this to -999 values 
-        # points_gdf[label] = np.where(points_gdf['Elev(mAHD)'] < points_gdf[label], points_gdf[label], 0)
-        
-    # filter where there is no data (0) in the dataframe 
-    # zero_values = points_gdf[points_gdf[label] == 0]
-
-
-################## STEP 3 FLOOD EXTENT SEARCH ##########################
+########## - STEP 3 - FLOOD EXTENT SEARCH - ##########
 
 # create a line (vector) from th point to the nearest waterway 
 # sample raster along the line and store the value 
@@ -197,26 +187,8 @@ for label, raster_path in flood_extent.items():
 # Loop through raster list of flood extents 
 for label, raster_path in flood_extent.items():
     with rasterio.open(raster_path) as raster:
-        
-        # The code block below was blocked out to trial updated sampling approach
-        # raster_data = raster.read(1)
-        # transform = raster.transform
-        # nodata = raster.nodata
-
-        # rows, cols = np.indices(raster_data.shape)
-        # xs, ys = rasterio.transform.xy(transform, rows, cols, offset='center')
-        # xs_flat = np.array(xs).flatten()
-        # ys_flat = np.array(ys).flatten()
-        # values_flat = raster_data.flatten()
-        # valid_mask = values_flat != nodata
-        # valid_coords = np.column_stack((xs_flat[valid_mask], ys_flat[valid_mask]))
-        # valid_values = values_flat[valid_mask]
-      
-        # Filter points where sampled value is 0 or nodata
-        # subset = points_gdf[(points_gdf[label] == 0)]
-        # print("subset complete")
-
-        # create empty lists within the loop, so they are generated for each raster
+       
+        # Create empty lists within the loop, so they are generated for each raster
         trace_lines = []
         central_waterway_values = []
 
@@ -264,45 +236,6 @@ for label, raster_path in flood_extent.items():
             centre_sample_value = float(next(raster.sample([(nearest_point_on_water.x, nearest_point_on_water.y)]))[0])
             central_waterway_values.append(centre_sample_value)
 
-            # The code block below was blocked out to trial updated sampling approach
-
-            # Sample along the trace line - edit from 100 to check 
-            # num_samples = 100
-            # sampled_points = [trace_line.interpolate(d, normalized=True) for d in np.linspace(0, 1, num_samples)]
-            # coords = [(p.x, p.y) for p in sampled_points]
-
-            # Sample raster at those coordinates
-            # sampled_values = list(raster.sample(coords))
-            # sampled_values = [val[0] for val in sampled_values]
-
-            # Get first non-nodata raster cell
-            # Found is intially set to False - this will convert to true once sampling is successful
-            # For loop samples both the values and coords (should be equal length)
-            # found = False
-            # for val, coord in zip(sampled_values, coords):
-                
-                # Handle band values
-                # v = val[0] with the if statement is to allow different data tpyes (this is a possibiilty based on the different raster/sampling types)
-                # If not one of the listed data type, the raw val is used from the sampling process
-                # v = val[0] if isinstance(val, (list, tuple, np.ndarray)) else val
-                
-                # For loop commences if val is a real data (not null)
-                # if v != raster.nodata:
-
-                    # Adds the first non zero raster value and coordinates to the predefined list
-                    # Updates the found entry to True, indicating search success
-                    # For loop is broken
-                    # closest_coords.append(Point(coord))
-                    # closest_values.append(float(v))
-                    # found = True
-                    # break
-
-            # The if not found is activated if found is still assigned to false
-            # None is predefined python variable to represent a null value            
-            # if not found:
-                # closest_coords.append(None)
-                # closest_values.append(None)
-
         # Add to original GeoDataFrame 
         points_gdf[f'{label}_W'] = central_waterway_values
 
@@ -319,9 +252,9 @@ for label, raster_path in flood_extent.items():
         trace_lines_gdf = gpd.GeoDataFrame(geometry=trace_lines, crs=points_gdf.crs)
         trace_lines_gdf.to_file(f'J:\\IE\\Projects\\03_Southern\\IA5000TK\\07 Technical\\02 Hydraulics\\0503\\04 Code Processing\\{label}_trace_lines_central_sample.shp')
 
-############# STEP 4 - LoS Processing ##########################    
-# Specifying the diff columns to search for the critical LoS
+########## - STEP 4 - LOS PROCESSING - ##########
 
+# Specifying the diff columns to search for the critical LoS
 # The [] command specifies an empty python list
 # A python list is one-dimensional, i.e. just a row of values
 check_cols = []
@@ -329,6 +262,7 @@ numeric_cols = ["Elev(mAHD)"]
 
 # For loop to group numeric datasets
 for label in flood_extent.keys():
+
     # Check cols includes _Diff values for subsequent LoS testing
     check_cols.append(f'{label}_D')
     numeric_cols.append(f'{label}_L')
@@ -359,13 +293,12 @@ points_gdf['LoS'] = points_gdf['LoS'].str.split('_').str[0]
 # Converting data columns to numeric to allow for rounding
 points_gdf[numeric_cols] = points_gdf[numeric_cols].apply(pd.to_numeric, errors='coerce').round(3)
     
-############# STEP 5 - SAVE THE OUTPUT ###############        
+########## - STEP 5 - SAVE THE OUTPUT - ##########
 
+# Extracting asset name to use in file export
 code = str(levee_shp.iloc[0]['LOCATION_I'])
 code = code.split("/")[0]
-# description = str(levee_shp.iloc[0]['DESCRIPTIO'])
-# code = code.replace('/','_')
+
 # Save points to a new shapefile
-#points_gdf.to_file(f"J:\\IE\\Projects\\03_Southern\\IA5000TK\\07 Technical\\04 Scripting_Code\\Python\\Processing\{code}.shp", driver='ESRI Shapefile')
 points_gdf = points_gdf.round(3)
 points_gdf.to_file(f"J:\\IE\\Projects\\03_Southern\\IA5000TK\\07 Technical\\04 Scripting_Code\\Python\\Processing\\{code}_Levee_LoS_Processing_Central_Sample_v2.shp", driver='ESRI Shapefile')
