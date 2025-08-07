@@ -1,5 +1,6 @@
 # Importing necessary python packages
 # These will need to be installed on the users PC to run the script
+# Refer to requirements file for package details
 import os
 import pandas as pd
 import rasterio
@@ -11,29 +12,29 @@ from shapely.geometry import Point, LineString
 
 def check_file(path, expected_ext=None):
     """
-    Validates the existence and file extension of a given file path.
+    Validates the existence and file extension of a given file path
 
     Parameters:
     ----------
     path : str
-        The full file path to check.
+        The full file path to check
 
     expected_ext : str, optional
         The expected file extension (e.g., '.tif', '.shp'). If provided, the function will verify
-        that the file has this extension.
+        that the file has this extension
 
     Raises:
     -------
     FileNotFoundError
-        If the file does not exist at the specified path.
+        If the file does not exist at the specified path
 
     ValueError
-        If the file exists but does not match the expected extension.
+        If the file exists but does not match the expected extension
 
     Notes:
     ------
-    - This function is useful for pre-validating inputs before attempting file I/O operations.
-    - The extension check is case-insensitive.
+    - This function is useful for pre-validating inputs before attempting file operations
+    - The extension check is case-insensitive
     """
     if not os.path.exists(path):
         raise FileNotFoundError(f"File not found: {path}")
@@ -42,9 +43,9 @@ def check_file(path, expected_ext=None):
 
 def get_crs(filepath):
     """
-    Determines the coordinate reference system (CRS) of a spatial file.
+    Determines the coordinate reference system (CRS) of a spatial file
 
-    Supports vector files (.shp) and raster files (.tif, .asc, .flt).
+    Supports vector files (.shp) and raster files (.tif, .asc, .flt)
 
     Parameters:
     ----------
@@ -67,8 +68,8 @@ def get_crs(filepath):
     Notes:
     ------
     - For raster formats like .asc and .flt, ensure accompanying metadata files (.prj, .hdr) are present
-      to allow proper CRS detection.
-    - Result files are assumed to be in a .tif, .asc or .flt format.
+      to allow proper CRS detection
+    - Result files are assumed to be in a .tif, .asc or .flt format
     """
     try:
         if filepath.lower().endswith('.shp'):
@@ -84,20 +85,19 @@ def get_crs(filepath):
 
 def sample_lidar_values(points_gdf, Lidar_filepath):
     """
-    Samples elevation values from a LiDAR raster and assigns them to point geometries in a GeoDataFrame.
+    Samples elevation values from a LiDAR raster and assigns them to point geometries in a GeoDataFrame
 
     Parameters:
     ----------
     points_gdf : geopandas.GeoDataFrame
         A GeoDataFrame containing point geometries. This object will be modified in place by adding a new column
-        'Elev(mAHD)' with elevation values sampled from the raster.
+        'Elev(mAHD)' with elevation values sampled from the raster
 
     Lidar_filepath : str
         File path to the LiDAR raster (e.g., a .tif file) from which elevation values will be extracted.
 
     Notes:
     ------
-    - This function modifies `points_gdf` in place. To preserve the original data, consider passing a copy.
     - Elevation values are sampled using the raster index corresponding to each point's coordinates.
     - The function assumes the raster and point geometries are in the same coordinate reference system (CRS).
 
@@ -105,39 +105,41 @@ def sample_lidar_values(points_gdf, Lidar_filepath):
     --------
     None
     """
-    
+    # Creates copy of input data
+    sampled_points_gdf = points_gdf.copy()
+    sampled_points_gdf["Elev(mAHD)"] = None # Initate column
+
     # Open raster
     with rasterio.open(Lidar_filepath) as src:
         
         # Loop through each point and extract the raster value
-        for index, point in points_gdf.iterrows():
+        for index, point in sampled_points_gdf.iterrows():
             x, y = point.geometry.x, point.geometry.y
             row, col = src.index(x, y)
-            points_gdf.at[index, 'Elev(mAHD)'] = src.read(1)[row, col]
+            sampled_points_gdf.at[index, 'Elev(mAHD)'] = src.read(1)[row, col]
+
+    return sampled_points_gdf            
 
 def sample_flood_extent(points_gdf, raster_path, label):
     """
-    Samples flood extent values from a raster and assigns them to point geometries in a GeoDataFrame.
+    Samples flood extent values from a raster and assigns them to point geometries in a GeoDataFrame
 
     Parameters:
     ----------
     points_gdf : geopandas.GeoDataFrame
         A GeoDataFrame containing point geometries. This object will be modified in place by adding a new column
-        named '{label}_L' with values sampled from the raster.
+        named '{label}_L' with values sampled from the raster
 
     raster_path : str
         File path to the flood extent raster (e.g., a .tif file) from which values will be extracted.
 
     label : str
         A label used to name the new column in the GeoDataFrame. For example, if label is 'AEP_1%', the new column
-        will be 'AEP_1%_L'.
+        will be 'AEP_1%_L'
 
     Notes:
     ------
-    - This function modifies `points_gdf` in place. To preserve the original data, consider passing a copy.
-    - The `flood_extent` parameter is unused and should be removed unless needed for future logic.
-    - The function assumes the raster and point geometries are in the same coordinate reference system (CRS).
-    - Consider refactoring with `sample_lidar_values` into a generic raster sampling function to reduce duplication.
+    - The function assumes the raster and point geometries are in the same coordinate reference system (CRS)
 
     Returns:
     --------
@@ -156,25 +158,25 @@ def sample_flood_extent(points_gdf, raster_path, label):
 
 def levee_identifier(levee_code):
     """
-    Extracts the suffix and numeric identifier from a levee code string.
+    Extracts the suffix and numeric identifier from a levee code string
 
     Parameters:
     ----------
     levee_code : str
-        A string representing a levee identifier, expected to follow the format 'LEV<number><suffix>'.
+        A string representing a levee identifier, expected to follow the format 'LEV<number><suffix>'
         Example: 'LEV12A' → number: 12, suffix: 'A'
 
     Returns:
     --------
     tuple
         A tuple containing:
-        - suffix (str): The last character of the levee code.
-        - number (int): The numeric portion of the levee code, extracted from between 'LEV' and the suffix.
+        - suffix (str): The last character of the levee code
+        - number (int): The numeric portion of the levee code, extracted from between 'LEV' and the suffix
 
     Notes:
     ------
-    - The function assumes the levee code always starts with 'LEV' and ends with a single-character suffix.
-    - If the format varies, consider adding error handling to validate the input.
+    - The function assumes the levee code always starts with 'LEV' and ends with a single-character suffix
+    - If the format varies, consider adding error handling to validate the input
     """
     suffix = levee_code[-1]
     number = int(levee_code.split("LEV")[1][:-1])
@@ -182,16 +184,21 @@ def levee_identifier(levee_code):
 
 def trace_and_sample(point, waterway_lines, raster, nodata_value=-9999):
     """
-    Traces a point to the nearest waterway line and samples a raster at the nearest location.
+    Traces a point to the nearest waterway line and samples a raster at the nearest location
 
     Parameters:
-        point (shapely.geometry.Point): The reference point.
-        waterway_lines (GeoSeries): Geometry of waterway lines.
-        raster (rasterio.DatasetReader): Open raster object.
-        nodata_value (float): Value to return if raster sample is missing or invalid.
+        point (shapely.geometry.Point): The reference point
+        waterway_lines (GeoSeries): Geometry of waterway lines
+        raster (rasterio.DatasetReader): Open raster object
+        nodata_value (float): Value to return if raster sample is missing or invalid
 
     Returns:
         tuple: (trace_line: LineString, sampled_value: float)
+
+    Notes:
+    ------
+    - -9999 is an assigned nodata value
+    - Users can update this based on their own preference
     """
     if not isinstance(point, Point):
         point = Point(point)
@@ -225,7 +232,9 @@ waterway = r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\04 Scripting_Code\
 
 # Extract lidar extension for input into check_file function
 # Levee and waterway files assumed to be in .shp format
+_, levee_ext = os.path.splitext(Levee_filepath)
 _, lidar_ext = os.path.splitext(Lidar_filepath)
+_, waterway_ext = os.path.splitext(waterway)
 
 # Define flood result file paths
 # Flooding results loaded in with label function - this creates a dictionary of titles and filepaths
@@ -242,9 +251,9 @@ flood_extent = {
  }
 
 # Validate input files
-check_file(Levee_filepath, '.shp')
+check_file(Levee_filepath, levee_ext)
 check_file(Lidar_filepath, lidar_ext)
-check_file(waterway, '.shp')
+check_file(waterway, waterway_ext)
 
 # Printing data projections
 levee_crs = get_crs(Levee_filepath)
@@ -260,8 +269,10 @@ if lidar_crs != levee_crs:
 if waterway_crs != levee_crs:
     print("⚠️ Warning: Levee shapefile and waterway shapefile have different coordinate systems")
 
+# Loop to manage flood dictionary
 for label, path in flood_extent.items():
-    check_file(path, '.tif')
+    _, flood_ext = os.path.splitext(path)
+    check_file(path, flood_ext)
     flood_crs = get_crs(path)
     print(f"The {label} result is projected in {flood_crs}")
     if flood_crs != levee_crs:
@@ -274,51 +285,42 @@ levee_shp = gpd.read_file(Levee_filepath)
 
 # Point on the levee - create an empty list 
 points_list = []
-chainage_dataframe = gpd.GeoDataFrame({'Levee Identifier': [], 'Chainage': []})
+chainage_dataframe = gpd.GeoDataFrame({
+    'Levee Identifier': pd.Series(dtype='object'),
+    'Chainage': pd.Series(dtype = 'float64')})
 
 # This is in metres
 distance = 10 
 
 # Create unique list of levee names based on MW data field
-code_levee_names = levee_shp['LOCATION_I'].unique() #NF: This line assumes that LOCATION_I is the field containing the levee names. It that always the case? If not, consider making it a parameter of the function or checking the field name before using it.
+code_levee_names = levee_shp['LOCATION_I'].unique() # Code assume LOCATION_I is a field within the input levee shapefile as per MW geodatabase for levees
 
 # Empty dictionary to store reordered data
 levee_order = {}
 
 # For loop to cycle through each unique name
-for asset_code in code_levee_names: #NF: code is a bit generic. Consider other name. 
-    #NF: Consider not using the same variable name as the function parameter in the loop, as it can lead to confusion and potentially overwrite the function parameter.
+for asset_code in code_levee_names:
         
     # Earlier function is called to generate the levee name parts
     suffix, number = levee_identifier(asset_code)
 
     # This line is grouping the levee names into their respective parts
-    # By using .sefdefault, if suffix is not already a key in the dictionary, a new key (suffix) and empty list pairing is added
-    # If suffix is already a key, the existing value associated with that key is returned (i.e. no change) and the new number/code pairing is appended
-    # Assigning the number as the first dictionary input is input to the next line of code
-    levee_order.setdefault(suffix, []).append((number, asset_code)) #NF: not sure I understand the reason why the levees are split by suffix?
+    levee_order.setdefault(suffix, []).append((number, asset_code))
 
-# This is the equivalent to a nested for loop
-# First the suffix (dictionary key) are iterated over - using sorted(levee_order) groups the E, W, etc. alphabetically
-# The second for loop iterates over the levee code based on the number entry, e.g. 1, 2 etc.
-# The _, represents a variable that is being iterated over in the for loop but is not used
-# print statement to show reordered codes
-reordered_levee_codes = [code for suffix in sorted(levee_order) for _, code in sorted(levee_order[suffix])] #NF: what is the purpose of creating this sorted list? 
-print(reordered_levee_codes) #NF: This print statement is useful for debugging, but consider removing it or replacing it with a logging statement in production code.
+# This is the equivalent to a nested for loop and is to sort the levees in an order convenient for post processing
+reordered_levee_codes = [code for suffix in sorted(levee_order) for _, code in sorted(levee_order[suffix])]
+print(f"levee assets within input shapefile include {reordered_levee_codes}")
 
 # Reindexing the levee shp based on new index order
-# print statement to show reordered dataframe
 levee_shp_reorder = levee_shp.copy()
-levee_shp_reorder = levee_shp_reorder.set_index('LOCATION_I').loc[reordered_levee_codes] #NF: I would usualy to this on a copy of the dataframe to avoid modifying the original data.
+levee_shp_reorder = levee_shp_reorder.set_index('LOCATION_I').loc[reordered_levee_codes]
 levee_shp_reorder.reset_index(inplace = True)
-# print(levee_shp_reorder) #NF: This print statement is useful for debugging, but consider removing it or replacing it with a logging statement in production code.
 
 # Initialising datasets for chainage reordering
-# unique_levee_names = levee_shp['LOCATION_I'].unique() #NF: This is the same as code_levee_names, consider removing one of them to avoid redundancy.
 looped_chain_count = 0
 levee_count = 0
 
-# For loop to work through each line feature in the input shapefile - each specific levee asset
+# For loop to work through each line feature in the input shapefile, i.e. each specific levee asset
 for line in levee_shp_reorder.geometry:
     
     # Total length 
@@ -356,7 +358,7 @@ for line in levee_shp_reorder.geometry:
              chainage_dataframe.at[(looped_chain_count + point_loc + 1), 'Levee Identifier'] = code_levee_names[(levee_count)]
         
     # Resetting loop counter for next individual levee asset
-    looped_chain_count = looped_chain_count + point_loc + 2
+    looped_chain_count = looped_chain_count + point_loc + 2 # +2 to move past end point
     levee_count = levee_count + 1
 
 # Create a new GeoDataFrame from the points
@@ -370,29 +372,16 @@ print("Point delineation complete")
 ########## - STEP 4 - CALL SAMPLE FUNCTIONS - ##########
 
 # Sample lidar 
-lidar_values = sample_lidar_values(points_gdf, Lidar_filepath)
+sampled_points_gdf = sample_lidar_values(points_gdf, Lidar_filepath)
 print("LiDAR point sampling complete")
 
-# Sample flood extents 
-# Loop through raster list of flood extents 
-for label, raster_path in flood_extent.items():
-    
-    # Sample flood results in the same location of the levee 
-    flood_extent_values = sample_flood_extent(points_gdf, raster_path, label) # NF: See comments for function
-    print(f"Flood extent sampling complete for {label}")
-
-########## - STEP 5 - FLOOD EXTENT SEARCH - ##########
-
+# Central waterway sampling
 # create a line (vector) from the levee point to the nearest waterway 
-# sample raster along the line and store the value 
-# identify the closest raster cell between the point and the waterway (excluding null values)
-
-# Load raster
+# Sample flood result at location of closest point on the waterway
 # Loop through raster list of flood extents 
-
 waterway_gdf = gpd.read_file(waterway)
-if points_gdf.crs != waterway_gdf.crs:
-    waterway_gdf = waterway_gdf.to_crs(points_gdf.crs) 
+if sampled_points_gdf.crs != waterway_gdf.crs:
+    waterway_gdf = waterway_gdf.to_crs(sampled_points_gdf.crs) 
 
 for label, raster_path in flood_extent.items():
     with rasterio.open(raster_path) as raster:
@@ -402,36 +391,36 @@ for label, raster_path in flood_extent.items():
         central_waterway_values = []
 
         # check coordinate system
-        if points_gdf.crs != waterway_gdf.crs:
-            waterway_gdf = waterway_gdf.to_crs(points_gdf.crs) 
+        if sampled_points_gdf.crs != waterway_gdf.crs:
+            waterway_gdf = waterway_gdf.to_crs(sampled_points_gdf.crs) 
         
         # This command strips the attribute data from the geodataframe and leaves only the geometries
         waterway_lines = waterway_gdf.geometry
 
         # This for loop interates over both the index and the geometry (points) with the geodata frame
-        # Using the .geometry isolates the geometry
-        # Using .items allow iteration over both idx and points
-        for idx, point in points_gdf.geometry.items():
+        for idx, point in sampled_points_gdf.geometry.items():
+
+            # Waterway/result sample function called
             trace_line, value = trace_and_sample(point, waterway_gdf.geometry, raster)
             trace_lines.append(trace_line)
             central_waterway_values.append(value)
             
         # Add to original GeoDataFrame 
-        points_gdf[f'{label}_W'] = central_waterway_values
+        sampled_points_gdf[f'{label}_W'] = central_waterway_values
 
-        # we can now drop this column NF: no column is dropped in the current code as it is commented out
-        points_gdf[f'{label}_D'] = points_gdf['Elev(mAHD)'] - points_gdf[f'{label}_W'] #NF: this only compared the water level in the river and the elevation. What about the water level at the levee?
-        print(points_gdf) #NF: This print statement is useful for debugging, but consider removing it or replacing it with a logging statement in production code.
+        # Computing difference/freeboard analysis
+        sampled_points_gdf[f'{label}_D'] = sampled_points_gdf['Elev(mAHD)'] - sampled_points_gdf[f'{label}_W']
+        
+# Progress print statement
+print('Central waterway sampling complete')
 
-# for anaylsis of correct raster cells, output generated trace lines 
-trace_lines_gdf = gpd.GeoDataFrame(geometry=trace_lines, crs=points_gdf.crs) #NF: you generate tracelines for each event, but they don't change, as the points in the levee are the same and the waterway is the same. Just make one traceline output.
+# Output generated trace lines exported for anaylsis/checking of correct raster cells
+trace_lines_gdf = gpd.GeoDataFrame(geometry=trace_lines, crs=sampled_points_gdf.crs)
 trace_lines_gdf.to_file(f'J:\\IE\\Projects\\03_Southern\\IA5000TK\\07 Technical\\04 Scripting_Code\\Python\\Review\\Outputs\\{label}_trace_lines_central_sample_ReviewTest.shp')
 
 ########## - STEP 6 - LOS PROCESSING - ##########
 
 # Specifying the diff columns to search for the critical LoS
-# The [] command specifies an empty python list
-# A python list is one-dimensional, i.e. just a row of values
 check_cols = []
 numeric_cols = ["Elev(mAHD)"]
 
@@ -444,28 +433,21 @@ for label in flood_extent.keys():
     numeric_cols.append(f'{label}_D')
 
 # Creating a subset of the points_gdf from the check_cols
-# This is using the list as an index reference for points_gdf
 # All other values not > 0 become NaN
-freeboard_events = points_gdf[check_cols].where(points_gdf[check_cols] > 0)
+freeboard_events = sampled_points_gdf[check_cols].where(sampled_points_gdf[check_cols] > 0)
 
 # Taking the LoS classification corresponding to the minimum freeboard event
-# idxmin is used rather than min to return the the label/position of the column rather than the actual data entry.
-# axis = 1 locks to search to be per row
-# idxmin does not search and return on NaN values
-points_gdf['LoS'] = freeboard_events.idxmin(axis=1)
+sampled_points_gdf['LoS'] = freeboard_events.idxmin(axis=1)
 
 # Code to assign the levee points with no observed freeboard a LoS rank of >20%
-# .min(axis=1) is used to search for the minimum value along each row of the freeboard_events gdf
-# .isna() checks if the minimum row value is NaN. Based on the last row of code, if NaN is found, the whole row will be NaN
-# Result is a series of true/false - one per row
-# If .isna() condition met, >20% assiged to the LoS column
-points_gdf.loc[freeboard_events.min(axis=1).isna(), 'LoS'] = ">20%"
+sampled_points_gdf.loc[freeboard_events.min(axis=1).isna(), 'LoS'] = ">20%"
 
 # Dropping the _Diff suffix from LoS entry
-points_gdf['LoS'] = points_gdf['LoS'].str.split('_').str[0]
+sampled_points_gdf['LoS'] = sampled_points_gdf['LoS'].str.split('_').str[0]
 
 # Converting data columns to numeric to allow for rounding
-points_gdf[numeric_cols] = points_gdf[numeric_cols].apply(pd.to_numeric, errors='coerce').round(3)
+sampled_points_gdf[numeric_cols] = sampled_points_gdf[numeric_cols].apply(lambda col: col.astype('float64') if col.dtype != 'float64' else col)
+sampled_points_gdf[numeric_cols] = sampled_points_gdf[numeric_cols].apply(pd.to_numeric, errors='coerce').round(3)
     
 ########## - STEP 7 - SAVE THE OUTPUT - ##########
 
@@ -474,5 +456,6 @@ code = str(levee_shp_reorder.iloc[0]['LOCATION_I'])
 code = code.split("/")[0]
 
 # Save points to a new shapefile
-points_gdf = points_gdf.round(3)
-points_gdf.to_file(f"J:\\IE\\Projects\\03_Southern\\IA5000TK\\07 Technical\\04 Scripting_Code\\Python\\Review\\Outputs\\{code}_Levee_LoS_Processing_Central_Sample_ReviewTest.shp", driver='ESRI Shapefile')
+sampled_points_gdf = sampled_points_gdf.round(3)
+sampled_points_gdf.to_file(f"J:\\IE\\Projects\\03_Southern\\IA5000TK\\07 Technical\\04 Scripting_Code\\Python\\Review\\Outputs\\{code}_Levee_LoS_Processing_Central_Sample_Review2.gpkg", driver='GPKG')
+print('LoS processing complete and exports generated')
