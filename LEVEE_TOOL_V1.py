@@ -44,7 +44,6 @@ def check_file(path, expected_ext=None):
 def get_crs(filepath):
     """
     Determines the coordinate reference system (CRS) of a spatial file
-
     Supports vector files (.shp) and raster files (.tif, .asc, .flt)
 
     Parameters:
@@ -90,20 +89,21 @@ def sample_lidar_values(points_gdf, Lidar_filepath):
     Parameters:
     ----------
     points_gdf : geopandas.GeoDataFrame
-        A GeoDataFrame containing point geometries. This object will be modified in place by adding a new column
+        A GeoDataFrame containing point geometries. This object will be modified and replaced by a new 'sample' gdf
         'Elev(mAHD)' with elevation values sampled from the raster
 
     Lidar_filepath : str
-        File path to the LiDAR raster (e.g., a .tif file) from which elevation values will be extracted.
+        File path to the LiDAR raster (e.g., a .tif file) from which elevation values will be extracted
 
     Notes:
     ------
-    - Elevation values are sampled using the raster index corresponding to each point's coordinates.
-    - The function assumes the raster and point geometries are in the same coordinate reference system (CRS).
+    - Elevation values are sampled using the raster index corresponding to each point's coordinates
+    - The function assumes the raster and point geometries are in the same coordinate reference system (CRS)
 
     Returns:
     --------
-    None
+    sampled_points_gdf : geopandas.GeoDataFrame
+        A GeoDataFrame with sampled LiDAR values appended
     """
     # Creates copy of input data
     sampled_points_gdf = points_gdf.copy()
@@ -140,6 +140,7 @@ def sample_flood_extent(points_gdf, raster_path, label):
     Notes:
     ------
     - The function assumes the raster and point geometries are in the same coordinate reference system (CRS)
+    - This function is not called in the current version of the LEVEE_TOOL, however has been left in for future iterations/changes
 
     Returns:
     --------
@@ -177,6 +178,7 @@ def levee_identifier(levee_code):
     ------
     - The function assumes the levee code always starts with 'LEV' and ends with a single-character suffix
     - If the format varies, consider adding error handling to validate the input
+    - This function was developed to help ease post processing ordering of levee assets
     """
     suffix = levee_code[-1]
     number = int(levee_code.split("LEV")[1][:-1])
@@ -221,14 +223,15 @@ def trace_and_sample(point, waterway_lines, raster, nodata_value=-9999):
     sample = next(raster.sample([(nearest_point_on_water.x, nearest_point_on_water.y)]))[0]
     sampled_value = float(sample) if sample is not None and not np.isnan(sample) else nodata_value
 
+    # Function outputs
     return trace_line, sampled_value
 
 ########## - STEP 2 - DEFINE FILEPATHS & CALL DATA CHECK FUNCTIONS - ##########
 
 # Define file paths
-Levee_filepath = r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\04 Scripting_Code\Python\Review\Levee_Align\4420_Merri_Ck_LeveeAlign_v2.shp"
-Lidar_filepath = r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\04 Scripting_Code\Python\Review\LiDAR\LiDAR_Merge.tif"
-waterway = r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\04 Scripting_Code\Python\Review\Waterway_Align\4420_Channel_Centreline.shp"
+Levee_filepath = r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\0503\03 Exports\0503_Eumemmering_Ck_LeveeAlign_v3.shp"
+Lidar_filepath = r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\0503\03 Exports\LiDAR_Merge.tif"
+waterway = r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\0503\02 Build Data\03 Shapefiles\0503_Channel_Centreline.shp"
 
 # Extract lidar extension for input into check_file function
 # Levee and waterway files assumed to be in .shp format
@@ -240,13 +243,13 @@ _, waterway_ext = os.path.splitext(waterway)
 # Flooding results loaded in with label function - this creates a dictionary of titles and filepaths
 # Comment out any extra filepaths/used AEP events
 flood_extent = {
-    '1%_AEP' : r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\04 Scripting_Code\Python\Review\Flood_Results\4420_MerriCreek_3m_aep1_h_Max.tif",
-    # '1%CC_AEP' : r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\TUFLOW_results_H_max\Arden_fail_CC_C_100y_657_max_h.asc",
-    '2%_AEP' : r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\04 Scripting_Code\Python\Review\Flood_Results\4420_MerriCreek_3m_aep2_h_Max.tif",
-    '5%_AEP' : r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\04 Scripting_Code\Python\Review\Flood_Results\4420_MerriCreek_3m_aep5_h_Max.tif",
-    '10%_AEP' : r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\04 Scripting_Code\Python\Review\Flood_Results\4420_MerriCreek_3m_aep10_h_Max.tif",
+    '1%_AEP' : r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\0503\03 Exports\Rev1\0503_EumemmeringCk_3m_aep1_h_Max.tif",
+    # '1%CC_AEP' : r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\0621\01 Build Data\TUFLOW_results_H_max\GDA2020_Reprojected\Rasters\0621_100yr_CC_GDA2020.tif",
+    '2%_AEP' : r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\0503\03 Exports\Rev1\0503_EumemmeringCk_3m_aep2_h_Max.tif",
+    '5%_AEP' : r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\0503\03 Exports\Rev1\0503_EumemmeringCk_3m_aep5_h_Max.tif",
+    '10%_AEP' : r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\0503\03 Exports\Rev1\0503_EumemmeringCk_3m_aep10_h_Max.tif",
     # '10%CC_AEP' : r'J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\TUFLOW_results_H_max\Arden_fail_CC_C_010y_657_max_h.asc',
-    '20%_AEP' : r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\04 Scripting_Code\Python\Review\Flood_Results\4420_MerriCreek_3m_aep20_h_Max.tif",
+    '20%_AEP' : r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\0503\03 Exports\Rev1\0503_EumemmeringCk_3m_aep20_h_Max.tif",
     #'20%CC_AEP' : r'J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\TUFLOW_results_H_max\Arden_fail_CC_C_005y_657_max_h.asc'
  }
 
@@ -309,7 +312,7 @@ for asset_code in code_levee_names:
 
 # This is the equivalent to a nested for loop and is to sort the levees in an order convenient for post processing
 reordered_levee_codes = [code for suffix in sorted(levee_order) for _, code in sorted(levee_order[suffix])]
-print(f"levee assets within input shapefile include {reordered_levee_codes}")
+print(f"Levee assets within input shapefile include {reordered_levee_codes}")
 
 # Reindexing the levee shp based on new index order
 levee_shp_reorder = levee_shp.copy()
@@ -344,10 +347,11 @@ for line in levee_shp_reorder.geometry:
         # Updating chainage based on individual levee length
         unique_chainage = point_loc * 10
         chainage_dataframe.at[(looped_chain_count + point_loc), 'Chainage'] = unique_chainage
-        chainage_dataframe.at[(looped_chain_count + point_loc), 'Levee Identifier'] = code_levee_names[(levee_count)]
+        chainage_dataframe.at[(looped_chain_count + point_loc), 'Levee Identifier'] = reordered_levee_codes[(levee_count)]
 
         # If the point_loc is the last point, we can add the end point of the levee line using
         if point_loc == points:
+             
              # Append the last point of the levee line
              end_point = line.interpolate(length)
              points_list.append(Point(end_point.x, end_point.y))
@@ -355,7 +359,7 @@ for line in levee_shp_reorder.geometry:
              # Update chainage for the end point
              unique_chainage = length
              chainage_dataframe.at[(looped_chain_count + point_loc + 1), 'Chainage'] = unique_chainage
-             chainage_dataframe.at[(looped_chain_count + point_loc + 1), 'Levee Identifier'] = code_levee_names[(levee_count)]
+             chainage_dataframe.at[(looped_chain_count + point_loc + 1), 'Levee Identifier'] = reordered_levee_codes[(levee_count)]
         
     # Resetting loop counter for next individual levee asset
     looped_chain_count = looped_chain_count + point_loc + 2 # +2 to move past end point
@@ -414,10 +418,6 @@ for label, raster_path in flood_extent.items():
 # Progress print statement
 print('Central waterway sampling complete')
 
-# Output generated trace lines exported for anaylsis/checking of correct raster cells
-trace_lines_gdf = gpd.GeoDataFrame(geometry=trace_lines, crs=sampled_points_gdf.crs)
-trace_lines_gdf.to_file(f'J:\\IE\\Projects\\03_Southern\\IA5000TK\\07 Technical\\04 Scripting_Code\\Python\\Review\\Outputs\\{label}_trace_lines_central_sample_ReviewTest.shp')
-
 ########## - STEP 6 - LOS PROCESSING - ##########
 
 # Specifying the diff columns to search for the critical LoS
@@ -455,7 +455,11 @@ sampled_points_gdf[numeric_cols] = sampled_points_gdf[numeric_cols].apply(pd.to_
 code = str(levee_shp_reorder.iloc[0]['LOCATION_I'])
 code = code.split("/")[0]
 
+# Output generated trace lines exported for anaylsis/checking of correct raster cells
+trace_lines_gdf = gpd.GeoDataFrame(geometry=trace_lines, crs=sampled_points_gdf.crs)
+trace_lines_gdf.to_file(f'J:\\IE\\Projects\\03_Southern\\IA5000TK\\07 Technical\\02 Hydraulics\\{code}\\04 Code Processing\\Post_Review\\{code}_Sample_Trace_Lines.shp')
+
 # Save points to a new shapefile
 sampled_points_gdf = sampled_points_gdf.round(3)
-sampled_points_gdf.to_file(f"J:\\IE\\Projects\\03_Southern\\IA5000TK\\07 Technical\\04 Scripting_Code\\Python\\Review\\Outputs\\{code}_Levee_LoS_Processing_Central_Sample_Review2.gpkg", driver='GPKG')
+sampled_points_gdf.to_file(f"J:\\IE\\Projects\\03_Southern\\IA5000TK\\07 Technical\\02 Hydraulics\\{code}\\04 Code Processing\\Post_Review\\{code}_Levee_LoS_Matrix.gpkg", driver='GPKG')
 print('LoS processing complete and exports generated')
