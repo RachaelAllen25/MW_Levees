@@ -229,14 +229,14 @@ def trace_and_sample(point, waterway_lines, raster, nodata_value=-9999):
 ########## - STEP 2 - DEFINE FILEPATHS & CALL DATA CHECK FUNCTIONS - ##########
 
 # Define file paths
-Levee_filepath = r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\0503\03 Exports\0503_Eumemmering_Ck_LeveeAlign_v3.shp"
-Lidar_filepath = r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\0503\03 Exports\LiDAR_Merge.tif"
+levee_filepath = r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\0503\03 Exports\0503_Eumemmering_Ck_LeveeAlign_v3.shp"
+terrain_filepath = r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\0503\03 Exports\LiDAR_Merge.tif"
 waterway = r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\0503\02 Build Data\03 Shapefiles\0503_Channel_Centreline.shp"
 
 # Extract lidar extension for input into check_file function
 # Levee and waterway files assumed to be in .shp format
-_, levee_ext = os.path.splitext(Levee_filepath)
-_, lidar_ext = os.path.splitext(Lidar_filepath)
+_, levee_ext = os.path.splitext(levee_filepath)
+_, lidar_ext = os.path.splitext(terrain_filepath)
 _, waterway_ext = os.path.splitext(waterway)
 
 # Define flood result file paths
@@ -253,22 +253,25 @@ flood_extent = {
     #'20%CC_AEP' : r'J:\IE\Projects\03_Southern\IA5000TK\07 Technical\02 Hydraulics\4310\01 Build Data\TUFLOW_results_H_max\Arden_fail_CC_C_005y_657_max_h.asc'
  }
 
+# Define output directory
+output_dir = r"J:\IE\Projects\03_Southern\IA5000TK\07 Technical\04 Scripting_Code\Python\Review\Lucy_Testing\Outputs\Final"
+
 # Validate input files
-check_file(Levee_filepath, levee_ext)
-check_file(Lidar_filepath, lidar_ext)
+check_file(levee_filepath, levee_ext)
+check_file(terrain_filepath, lidar_ext)
 check_file(waterway, waterway_ext)
 
 # Printing data projections
-levee_crs = get_crs(Levee_filepath)
+levee_crs = get_crs(levee_filepath)
 print(f"Levee is projected in {levee_crs}")
-lidar_crs = get_crs(Lidar_filepath)
-print(f"LiDAR is projected in {lidar_crs}")
+lidar_crs = get_crs(terrain_filepath)
+print(f"Terrain is projected in {lidar_crs}")
 waterway_crs = get_crs(waterway)
 print(f"Waterway is projected in {waterway_crs}")
 
 # Check CRS compatibility
 if lidar_crs != levee_crs:
-    print("⚠️ Warning: Levee shapefile and LiDAR raster have different coordinate systems")
+    print("⚠️ Warning: Levee shapefile and terrain raster have different coordinate systems")
 if waterway_crs != levee_crs:
     print("⚠️ Warning: Levee shapefile and waterway shapefile have different coordinate systems")
 
@@ -284,7 +287,7 @@ for label, path in flood_extent.items():
 ########## - STEP 3 - READ IN LEVEE SHAPEFILE & REFORMAT - ##########
 
 # Read in levee shapefile 
-levee_shp = gpd.read_file(Levee_filepath) 
+levee_shp = gpd.read_file(levee_filepath) 
 
 # Point on the levee - create an empty list 
 points_list = []
@@ -376,8 +379,8 @@ print("Point delineation complete")
 ########## - STEP 4 - CALL SAMPLE FUNCTIONS - ##########
 
 # Sample lidar 
-sampled_points_gdf = sample_lidar_values(points_gdf, Lidar_filepath)
-print("LiDAR point sampling complete")
+sampled_points_gdf = sample_lidar_values(points_gdf, terrain_filepath)
+print("Terrain point sampling complete")
 
 # Central waterway sampling
 # create a line (vector) from the levee point to the nearest waterway 
@@ -418,7 +421,7 @@ for label, raster_path in flood_extent.items():
 # Progress print statement
 print('Central waterway sampling complete')
 
-########## - STEP 6 - LOS PROCESSING - ##########
+########## - STEP 5 - LOS PROCESSING - ##########
 
 # Specifying the diff columns to search for the critical LoS
 check_cols = []
@@ -449,7 +452,7 @@ sampled_points_gdf['LoS'] = sampled_points_gdf['LoS'].str.split('_').str[0]
 sampled_points_gdf[numeric_cols] = sampled_points_gdf[numeric_cols].apply(lambda col: col.astype('float64') if col.dtype != 'float64' else col)
 sampled_points_gdf[numeric_cols] = sampled_points_gdf[numeric_cols].apply(pd.to_numeric, errors='coerce').round(3)
     
-########## - STEP 7 - SAVE THE OUTPUT - ##########
+########## - STEP  - SAVE THE OUTPUT - ##########
 
 # Extracting asset name to use in file export
 code = str(levee_shp_reorder.iloc[0]['LOCATION_I'])
@@ -457,9 +460,9 @@ code = code.split("/")[0]
 
 # Output generated trace lines exported for anaylsis/checking of correct raster cells
 trace_lines_gdf = gpd.GeoDataFrame(geometry=trace_lines, crs=sampled_points_gdf.crs)
-trace_lines_gdf.to_file(f'J:\\IE\\Projects\\03_Southern\\IA5000TK\\07 Technical\\02 Hydraulics\\{code}\\04 Code Processing\\Post_Review\\{code}_Sample_Trace_Lines.shp')
+trace_lines_gdf.to_file(os.path.join(output_dir,f'{code}_Waterway_Search_Lines.shp'), driver = 'ESRI Shapefile')
 
 # Save points to a new shapefile
 sampled_points_gdf = sampled_points_gdf.round(3)
-sampled_points_gdf.to_file(f"J:\\IE\\Projects\\03_Southern\\IA5000TK\\07 Technical\\02 Hydraulics\\{code}\\04 Code Processing\\Post_Review\\{code}_Levee_LoS_Matrix.gpkg", driver='GPKG')
+sampled_points_gdf.to_file(os.path.join(output_dir,f'{code}_Levee_LoS_Matrix.gpkg'), driver='GPKG')
 print('LoS processing complete and exports generated')
